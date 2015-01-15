@@ -234,10 +234,10 @@ startairborne = 0	                               			--set to 1 for CAP flight to
 
 local numberofredCAPzones = 2								--input of numbers of defined CAP zones for Red side --YY capitalisation
 local numberofblueCAPzones = 2								--input of numbers of defined CAP zones for Blue side --YY capitalisation
-local numberofredCAPgroups = 1								--input of numbers of defined CAPs for red side
-local numberofblueCAPgroups = 1								--input of numbers of defined CAPs blue red side
-local numberofspawnedandactiveinterceptorgroupsRED = 1		--maximum number of at the same time ongoing active intercepts for Red side, NOTE: The counter will be reset with the "taskinginterval" and each time the airspace is clear
-local numberofspawnedandactiveinterceptorgroupsBLUE = 1		--maximum number of at the same time ongoing active intercepts for blue side, NOTE: The counter will be reset with the "taskinginterval" and each time the airspace is clear
+local numberofredCAPgroups = 2								--input of numbers of defined CAPs for red side
+local numberofblueCAPgroups = 2								--input of numbers of defined CAPs blue red side
+local numberofspawnedandactiveinterceptorgroupsRED = 2		--maximum number of at the same time ongoing active intercepts for Red side, NOTE: The counter will be reset with the "taskinginterval" and each time the airspace is clear
+local numberofspawnedandactiveinterceptorgroupsBLUE = 2		--maximum number of at the same time ongoing active intercepts for blue side, NOTE: The counter will be reset with the "taskinginterval" and each time the airspace is clear
 local CAPgroupsize = "randomized"			            	--["2";"4";"randomized"] if "randomized", the CAP groups consist of either 2 or 4 planes, if "2" it consists of 2 planes, if "4" it consists of 4 planes
 local GCIgroupsize = "randomized"			                --["2";"4";"randomized"; "dynamic"] if "randomized", the GCI interceptor groups consist of either 2 or 4 planes, if "dynamic" it has the same size as the intercepted group, if "2" it consists of 2 planes, if "4" it consists of 4 planes
 local nomessages = 0										--XX9 nomessages = 1 means suppress GCI warnings
@@ -260,7 +260,7 @@ cleanupradius = 3000										--XX9 parameter for radius of cleanup of wrecks et
 local debuggingmessages = false								--set to true if tracking messages shall be printed
 env.setErrorMessageBoxEnabled(false)		       			--set to false if debugging message box, shall not be shown in game
 local debuggingside = 'blue'									--set side for which tracking messages shall be printed, use 'both' if you want debug messages for both sides to be logged
-local funnum = 0											--set to 0 for all otherwise set to specific number for function of interest
+local funnum = 8											--set to 0 for all otherwise set to specific number for function of interest
 															-- airspaceviolation = 1
 															-- getinterceptorairborne = 2
 															-- spawninterceptor = 3
@@ -568,7 +568,7 @@ function airspaceviolation(color)
 
 	local interceptorside = color
 
-	if debuggingmessages == true and (side == debuggingside or debuggingside == 'both') then
+	if debuggingmessages == true and (side == debuggingside or debuggingside == 'both') and (funnum == 0 or funnum == 1) then
 		Debug("debuggingmessage stuck at airspaceviolation 1: counter:"..string.format(counter).."/ side: "..interceptorside, interceptorside)
 	end
 	
