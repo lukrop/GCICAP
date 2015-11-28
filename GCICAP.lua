@@ -330,7 +330,7 @@ function gcicap.spawnFighterGroup(side, airport, name, size, route)
     local template_unit = Unit.getByName(gcicap.unit_template_prefix..side..math.random(1, 4))
     local template_group = mist.getGroupData(template_unit:getGroup():getName())
     local template_unit_data = template_group["units"][1]
-    local airport_pos = mist.utils.makeVec2(airport:getPosition())
+    local airport_pos = airport:getPoint()
     local group_data = {}
     local unit_data = {}
     local onboard_num = template_unit_data["onboard_num"] - 1
@@ -339,8 +339,8 @@ function gcicap.spawnFighterGroup(side, airport, name, size, route)
         unit_data[i] = {}
         unit_data[i]["type"] = template_unit_data["type"]
         unit_data[i]["unitName"] = name.." Pilot "..i
-        unit_data[i]["x"] = airport_pos["x"]
-        unit_data[i]["y"] = airport_pos["y"]
+        unit_data[i]["x"] = airport_pos.x
+        unit_data[i]["y"] = airport_pos.z
         unit_data[i]["onboard_num"] =  onboard_num + i
         unit_data[i]["groupName"] = name
         unit_data[i]["payload"] = template_unit_data["payload"]
@@ -353,12 +353,12 @@ function gcicap.spawnFighterGroup(side, airport, name, size, route)
     group_data["hidden"] = gcicap.hide_groups
     group_data["country"] = template_group["country"]
     group_data["category"] = template_group["category"]
-    --group_data["route"] = route
+    group_data["route"] = route
 
     if mist.groupTableCheck(group_data) then
         if gcicap.debug then
             env.info("[GCICAS] Spawning fighter group "..name.." at "..airport:getName())
-            env.info(mist.utils.serialize("group_data", group_data))
+            env.info(mist.utils.serialize("[GCICAS] unit 1", group_data["units"][1]))
         end
         mist.dynAdd(group_data)
     else
@@ -377,7 +377,7 @@ function gcicap.createCAPRoute(airbase, zone, wp_count)
 
     local route = {}
     local airbase_id = airbase:getID()
-    local airbase_pos = mist.utils.makeVec2(airbase:getPosition())
+    local airbase_pos = airbase:getPoint() -- airbase:getPosition() seems to return garbage coordinates
     local field_elevation = land.getHeight(airbase_pos)
 
     -- create waypoints
@@ -387,8 +387,8 @@ function gcicap.createCAPRoute(airbase, zone, wp_count)
         if i == 1 or i == wp_count then
             route[i]["alt"] = field_elevation
             route[i]["speed_locked"] = false
-            route[i]["x"] = airbase_pos["x"]
-            route[i]["y"] = airbase_pos["y"]
+            route[i]["x"] = airbase_pos.x
+            route[i]["y"] = airbase_pos.z
             route[i]["airdromeId"] = airbase_id
 
             -- if its the first
@@ -427,8 +427,8 @@ function gcicap.createCAPRoute(airbase, zone, wp_count)
 
             route[i]["alt"] = alt
             route[i]["speed_locked"] = true
-            route[i]["x"] = point["x"]
-            route[i]["y"] = point["y"]
+            route[i]["x"] = point.x
+            route[i]["y"] = point.y
 
             -- Add CAP task to the waypoint
             route[i]["task"] = {
@@ -467,11 +467,6 @@ function gcicap.createCAPRoute(airbase, zone, wp_count)
             ["steer"] = 2,
         }
     end
+    return route
 end
-
--- gcicap.red_airbases = gcicap.getAirfields(1)
--- gcicap.blue_airbases = gcicap.getAirfields(2)
-
-gcicap.spawnFighterGroup("red", Airbase.getByName("Gudauta"), "Red Test", 2, gcicap.createCAPRoute(Airbase.getByName("Gudauta"), "redCAPzone1"))
-gcicap.spawnFighterGroup("blue", Airbase.getByName("Kobuleti"), "Blue Test", 4, gcicap.createCAPRoute(Airbase.getByName("Kobuleti"), "blueCAPzone1"))
 
