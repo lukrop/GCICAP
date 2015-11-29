@@ -93,6 +93,8 @@ gcicap.red.cap.borders_enabled = false
 gcicap.blue.cap.borders_enabled = false
 
 -- can be "parking", "takeoff" or "air" and defines the way the fighters spawn
+-- takeoff is NOT RECOMMENDED currently since their occur timing issues with tasking
+-- if a flight is queued for takeoff and not already in the game world while getting tasked
 gcicap.red.cap.spawn_mode = "parking"
 gcicap.red.gci.spawn_mode = "parking"
 
@@ -131,7 +133,6 @@ gcicap.debug = true
 -- the zone. e.g. "redCAPzone3" or "blueCAPzone1".
 gcicap.red.cap.zone_name = 'redCAPzone'
 gcicap.blue.cap.zone_name = 'blueCAPzone'
-
 
 -- name of group which waypoints define the border
 gcicap.red.border_group = 'redborder'
@@ -172,7 +173,7 @@ function gcicap.getAirfields(side)
     end
 
     if gcicap.debug and #gcicap_airfields == 0 then
-        env.warning("GCICAP: No airbases for " .. side .. " found.")
+        env.warning("[GCICAP] No airbases for " .. side .. " found.")
     end
     return gcicap_airfields
 end
@@ -193,7 +194,7 @@ function gcicap.getAllActiveAircrafts(side)
         end
     end
     if gcicap.debug and #active_aircraft == 0 then
-        env.info("GCICAP: No active aircraft for " .. side)
+        env.info("[GCICAP] No active aircraft for " .. side)
     end
     return active_aircraft
 end
@@ -223,7 +224,7 @@ function gcicap.getAllActiveEWR(side)
         end
     end
     if gcicap.debug and #active_ewr == 0 then
-        env.info ("GCICAP: No active EWR for " .. side)
+        env.info ("[GCICAP] No active EWR for " .. side)
     end
     return active_ewr
 end
@@ -304,7 +305,7 @@ function gcicap.checkForAirspaceIntrusion(side)
                             intruder_count = intruder_count + 1
                             if gcicap.debug then
                                 env.info("[GCICAP] Unit: "..ac:getName()..
-                                         " intruded airspace of "..side.." detected by "..ewr:getName())
+                                         " intruded airspace of "..side.." detected by "..ewr:getGroup():getName())
                             end
 
                             intruder = {
@@ -350,7 +351,7 @@ function gcicap.getClosestAirfieldToUnit(side, unit)
 
         if #airfields == 0 then
             if gcicap.debug then
-                env.error("GCICAP: There are no airfields of side " .. side)
+                env.error("[GCICAP] There are no airfields of side " .. side)
             end
             return false
         end
@@ -375,14 +376,14 @@ function gcicap.getClosestAirfieldToUnit(side, unit)
     end
 end
 
--- returns the closest flight, of given side, and it's distance to the given unit
+-- returns the closest flights, of given side, and their distances to the given unit
 function gcicap.getClosestFlightsToUnit(side, unit)
     if not unit then return false end
     local units = gcicap[side].cap.flights
     local closest_flights = {}
     if #units == 0 then
         if gcicap.debug then
-            env.info("GCICAP: No CAP flights of side "..side.." active")
+            env.info("[GCICAP] No CAP flights of side "..side.." active")
         end
         return false
     else
@@ -410,7 +411,7 @@ function gcicap.getClosestFlightsToUnit(side, unit)
     end
 end
 
-function gcicap.buildFirstWP(airbase, spawn_mode, cold)
+function gcicap.buildFirstWP(airbase, spawn_mode)
     local airbase_pos = airbase:getPoint()
     local airbase_id = airbase:getID()
     local wp = mist.fixedWing.buildWP(airbase_pos)
@@ -425,26 +426,6 @@ function gcicap.buildFirstWP(airbase, spawn_mode, cold)
         wp.action = "From Runway"
     end
 
-    -- if not cold then
-    --     -- this makes them effectivley go hot
-    --     wp.task = {
-    --         id = "ComboTask",
-    --         params = {
-    --             tasks = {
-    --                 [1] = {
-    --                     id = 'EngageTargets',
-    --                     params = {
-    --                         maxDist = 5000,
-    --                         priority = 1,
-    --                         targetTypes = {
-    --                             [1] = "Air"
-    --                         },
-    --                     }
-    --                 },
-    --             },
-    --         },
-    --     }
-    -- end
     return wp
 end
 
@@ -508,7 +489,6 @@ function gcicap.getFlight(group)
     return gcicap[f.side][f.task].flights[f.index]
 end
 
-
 function gcicap.registerFlight(side, task, airbase, group, param)
     local flight = {}
     flight.group_name = group:getName()
@@ -531,10 +511,9 @@ function gcicap.registerFlight(side, task, airbase, group, param)
 end
 
 function gcicap.removeFlight(name)
-    f = getFlightIndex(name)
+    f = gcicap.getFlightIndex(name)
     if gcicap.debug then
         env.info("[GCICAP] Removing flight: "..name)
-        env.info(mist.utils.serialize("flight", f))
     end
     table.remove(gcicap[f.side][f.task].flights, f.index)
 end
@@ -573,18 +552,21 @@ function gcicap.enterCAPZone(flight)
     end
 end
 
-function gcicap.taskEngage(group)
+function gcicap.taskEngage(group, max_dist)
+    if not max_dist then
+        max_dist = gcicap.cap.max_engage_distance
+    end
     local ctl = group:getController()
-    local hot = {
+    local engage = {
         id = 'EngageTargets',
         params = {
-            maxDist = gcicap.cap.max_engage_distance,
+            maxDist = max_dist,
             maxDistEnabled = true,
             targetTypes = { [1] = "Air" },
             priority = 0
         }
     }
-    ctl:pushTask(hot)
+    ctl:pushTask(engage)
 end
 
 function gcicap.taskEngageInZone(group, center, radius)
@@ -648,7 +630,7 @@ function gcicap.vectorToTarget(flight, intruder, cold)
             end
 
             -- reschedule function until either the interceptor or the intruder is dead
-            mist.scheduleFunction(gcicap.vectorToTarget, {flight, intruder, cold}, timer.getTime() + gcicap.interval + 5)
+            mist.scheduleFunction(gcicap.vectorToTarget, {flight, intruder, cold}, timer.getTime() + (gcicap.interval / 2))
         -- the target is dead, resume CAP or RTB
         else
             if flight.zone_name ~= nil then
@@ -656,8 +638,7 @@ function gcicap.vectorToTarget(flight, intruder, cold)
                 gcicap.taskWithCAP(flight)
             end
             -- send GCI back to homeplate
-            -- gcicap.taskWithRTB(flight.group, flight.airbase)
-            -- flight.rtb = true
+            gcicap.taskWithRTB(flight, flight.airbase)
         end
     else
         if target ~= nil then
@@ -679,15 +660,17 @@ function gcicap.taskWithCAP(flight, cold)
     ctl:setTask(cap_task)
     gcicap.enterCAPZone(flight)
 
-    --if not cold then
+    if not cold then
         gcicap.taskEngage(group)
-    --end
+    end
     if gcicap.debug then
         env.info("[GCICAP] Tasking "..group:getName().." with CAP in zone "..flight.zone.name)
     end
 end
 
-function gcicap.taskWithRTB(group, airbase, cold)
+function gcicap.taskWithRTB(flight, airbase, cold)
+    flight.rtb = true
+    local group = flight.group
     local ctl = group:getController()
     local af_pos = mist.utils.makeVec2(airbase:getPoint())
     local af_id = airbase:getID()
@@ -709,18 +692,12 @@ function gcicap.taskWithRTB(group, airbase, cold)
         }
     }
 
-    -- if not cold then
-    --     route.points[1].task = {
-    --         id = 'EngageTargets',
-    --         params = {
-    --             maxDist = 15000,
-    --             targetTypes = { [1] = "Air" },
-    --             priority = 0,
-    --         }
-    --     }
-    -- end
-
     ctl:setTask(cap_task)
+
+    if not cold then
+        -- only engage if enemy is inside of 10km of the leg
+        gcicap.engageTask(group, 10000)
+    end
 
     if gcicap.debug then
         env.info("[GCICAP] Tasking "..group:getName().." with RTB to "..airbase:getName())
@@ -836,7 +813,7 @@ end
 function gcicap.manageCAP(side)
     -- remove any dead flights from the list
     for i = 1, #gcicap[side].cap.flights do
-        if not gcicap[side].cap.flights[i].group then
+        if not Group.getByName(gcicap[side].cap.flights[i].group_name) then
             local flight = gcicap[side].cap.flights[i]
             -- if the flight was intercepting we don't need to
             -- remove it from the CAP zone because it already did
@@ -844,7 +821,6 @@ function gcicap.manageCAP(side)
                 gcicap.leaveCAPZone(flight)
             end
             -- finally remove the flight
-            env.info("REMOVEEEE")
             gcicap.removeFlight(flight.group_name)
         end
     end
