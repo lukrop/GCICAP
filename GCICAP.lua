@@ -44,8 +44,8 @@ gcicap.cap.max_alt = 7500
 
 -- set to true for CAP flight to start airborne at script initialisation,
 -- false for taking off from airfield at start
-gcicap.red.cap.start_airborne = true
-gcicap.blue.cap.start_airborne = true
+gcicap.red.cap.start_airborne = false
+gcicap.blue.cap.start_airborne = false
 
 -- amount of CAP zones (placed with triggerzones in the ME) for each side
 gcicap.red.cap.zones_count = 3
@@ -139,9 +139,8 @@ gcicap.unit_template_prefix = '__TMP__'
 gcicap.sides = { "red", "blue" }
 gcicap.tasks = { "cap", "gci" }
 
--- Time interval in which ongoing intercepts are renewed, NOTE: Do not use too small a value
--- as it interrupts intercepts and resets limit on active GCIs which can cause mission to be spammed by aircraft
---gcicap.tasking_interval = 1800
+-- interval, in seconds, of main and vectorToTarget functions
+gcicap.interval = 30
 
 -- returns airfields of given side which are marked with
 -- triggerzones (triggerzone name is exactly the same as airfield name).
@@ -184,7 +183,7 @@ function gcicap.getAllActiveAircrafts(side)
         local ac = Unit.getByName(all_aircraft[i])
         if ac ~= nil then
             if Unit.isActive(ac) then
-                active_aircraft[#active_aircraft + 1] = { name = ac }
+                table.insert(active_aircraft, ac)
             end
         end
     end
@@ -213,7 +212,7 @@ function gcicap.getAllActiveEWR(side)
                     or vec_type == "A-50"
                     or vec_type == "E-2D"
                     or vec_type == "E-3A" then
-                    active_ewr[#active_ewr + 1] = { name = vec }
+                    table.insert(active_ewr, vec)
                 end
             end
         end
@@ -222,6 +221,20 @@ function gcicap.getAllActiveEWR(side)
         env.info ("GCICAP: No active EWR for " .. side)
     end
     return active_ewr
+end
+
+function gcicap.getFirstActiveUnit(group)
+    if group then
+        local units = group:getUnits()
+        for i = 1, #units do
+           if units[i] then
+               return units[i]
+           end
+        end
+        return false
+    else
+        return false
+    end
 end
 
 function gcicap.checkForAirspaceIntrusion(side)
@@ -242,21 +255,22 @@ function gcicap.checkForAirspaceIntrusion(side)
     if #active_ac > 0 and #active_ewr > 0 then
         -- loop over all aircraft
         for i = 1, #active_ac do
-            local ac = Unit.getByName(active_ac[i].name)
+            local ac = active_ac[i]
             local ac_detected = false
             local ac_intruded = false
             local ac_pos = {}
             local ac_group = nil
+            local ewr = nil
             if ac ~= nil then
                 ac_pos = ac:getPosition()
                 ac_group = ac:getGroup()
 
                 -- now loop over all ewr units
                 for n = 1, #active_ewr do
-                    local ewr_group = (Unit.getByName(active_ewr[n].name)):getGroup()
-                    local ewr_controller = ewr_group:getController()
+                    local ewr_controller = active_ewr[n]:getGroup():getController()
                     -- and check if the EWR detected the aircraft
                     if ewr_controller:isTargetDetected(ac, RADAR) then
+                        ewr = active_ewr[n]
                         ac_detected = true
                         -- stop once it was detected by one EWR
                         break
@@ -273,32 +287,33 @@ function gcicap.checkForAirspaceIntrusion(side)
                     end
 
                     if ac_intruded then
-                        intruder_count = intruder_count + 1
-
-                        if gcicap.debug then
-                            env.info("GCICAP: Unit: "..active_ac[i].name.." intruded airspace \
-                                     of "..side.." detected by "..active_ewr[n].name)
-                        end
-
                         local in_list = false
-                        -- check if the intruder is already
+                        -- check if we already know about the intruder
                         for j = 1, #gcicap[side].intruders do
-                            if gcicap[side].intruders[i].name == active_ac[i].name then
+                            if gcicap[side].intruders[j].name == ac:getName() then
                                 in_list = true
+                                break
                             end
                         end
                         if not in_list then
-                            gcicap[side].intruders[#gcicap[side].intruders + 1] = {
-                                name = active_ac[i].name,
+                            intruder_count = intruder_count + 1
+                            if gcicap.debug then
+                                env.info("[GCICAP] Unit: "..ac:getName()..
+                                         " intruded airspace of "..side.." detected by "..ewr:getName())
+                            end
+
+                            intruder = {
+                                name = ac:getName(),
                                 unit = ac,
                                 group = ac_group,
-                                GroupID = ac_group:getID(),
-                                UnitID = ac:getID(),
-                                unittype = unit:getTypeName(),
+                                detected_by = ewr,
+                                --groupID = ac_group:getID(),
+                                --unitID = ac:getID(),
+                                --unitType = ac:getTypeName(),
                                 size = ac_group:getSize(),
-                                -- number = intruder_count,
                                 intercepted = false,
                             }
+                            table.insert(gcicap[side].intruders, intruder)
                         end
 
                         if gcicap.gci.messages then
@@ -317,31 +332,77 @@ function gcicap.checkForAirspaceIntrusion(side)
     --return gcicap[side].intruders
 end
 
+-- returns a random airfield for the given side
+function gcicap.getRandomAirfield(side)
+    local rand = math.random(1, #gcicap[side].airfields)
+    return gcicap[side].airfields[rand]
+end
+
+-- returns the closest airfield, of given side, and it's distance to the given unit
 function gcicap.getClosestAirfieldToUnit(side, unit)
-    local airfields = gcicap[side].airfields
+    if unit then
+        local airfields = gcicap[side].airfields
 
-    if #airfields == 0 then
+        if #airfields == 0 then
+            if gcicap.debug then
+                env.error("GCICAP: There are no airfields of side " .. side)
+            end
+            return false
+        end
+
+        local unit_pos = mist.utils.makeVec2(unit:getPoint())
+        local min_distance = -1
+        local closest_af = nil
+
+        for i = 1, #airfields do
+            local af = airfields[i]
+            local af_pos = mist.utils.makeVec2(af:getPoint())
+            local distance = mist.utils.get2DDist(unit_pos, af_pos)
+
+            if distance < min_distance or min_distance == -1 then
+                min_distance = distance
+                closest_af = af
+            end
+        end
+        return {airfield = closest_af, distance = min_distance}
+    else
+        return false
+    end
+end
+
+-- returns the closest flight, of given side, and it's distance to the given unit
+function gcicap.getClosestFlightsToUnit(side, unit)
+    if not unit then return false end
+    local units = gcicap[side].cap.flights
+    local closest_flights = {}
+    if #units == 0 then
         if gcicap.debug then
-            env.error("GCICAP: There are no airfields of side " .. side)
+            env.info("GCICAP: No CAP flights of side "..side.." active")
         end
-        return
-    end
-
-    local unit_pos = mist.utils.makeVec2(unit:getPoint())
-    local min_distance = -1
-    local closest_af = nil
-
-    for i = 1, #airfields do
-        local af = airfields[i]
-        local af_pos = mist.utils.makeVec2(af:getPoint())
-        local distance = mist.utils.get2DDist(unit_pos, af_pos)
-
-        if distance < min_distance or min_distance == -1 then
-            min_distance = distance
-            closest_af = af
+        return false
+    else
+        local unit_pos = mist.utils.makeVec2(unit:getPoint())
+        local min_distance = -1
+        --local closest_flight = nil
+        for i = 1, #units do
+            if units[i].group then
+                local u = gcicap.getFirstActiveUnit(units[i].group)
+                local u_pos = mist.utils.makeVec2(u:getPoint())
+                local distance = mist.utils.get2DDist(unit_pos, u_pos)
+                table.insert(closest_flights, {flight = units[i], distance = distance })
+            end
         end
+
+        -- sort closest flights
+        table.sort(closest_flights, function(a,b)
+            if a.distance < b.distance then
+                return true
+            else
+                return false
+            end
+        end)
+        return closest_flights
     end
-    return closest_af
 end
 
 function gcicap.buildFirstWP(airbase, spawn_mode, cold)
@@ -368,7 +429,7 @@ function gcicap.buildFirstWP(airbase, spawn_mode, cold)
                     [1] = {
                         id = 'EngageTargets',
                         params = {
-                            maxDist = 60,
+                            maxDist = 5000,
                             priority = 1,
                             targetTypes = {
                                 [1] = "Air"
@@ -442,24 +503,33 @@ function gcicap.getFlight(group)
 end
 
 
-function gcicap.registerFlight(side, task, group, param)
+function gcicap.registerFlight(side, task, airbase, group, param)
     local flight = {}
     flight.group_name = group:getName()
     flight.group = group
     if task == "cap" then
-        flight.zone_name = param
+        flight.zone = param
+        flight.zone_name = param.name
     elseif task == "gci" then
-        flight.target_group = param
+        flight.target = param
+        flight.target_group = param.group
     end
     if task == "cap" then
         flight.intercepting = false
+    else
+        flight.intercepting = true
     end
     flight.rtb = false
     table.insert(gcicap[side][task].flights, flight)
+    return gcicap[side][task].flights[#gcicap[side][task].flights]
 end
 
 function gcicap.removeFlight(name)
     f = getFlightIndex(name)
+    if gcicap.debug then
+        env.info("[GCICAP] Removing flight: "..name)
+        env.info(mist.utils.serialize("flight", f))
+    end
     table.remove(gcicap[f.side][f.task].flights, f.index)
 end
 
@@ -473,6 +543,27 @@ function gcicap.setFlightIsIntercepting(group, intercepting, target)
     flight.intercepting = intercepting
     if target then
         flight.target = target
+    else
+        flight.target = nil
+    end
+end
+
+function gcicap.leaveCAPZone(flight)
+    local zone = flight.zone
+    if zone.patrol_count <= 1 then
+        zone.patrol_count = 0
+        zone.patroled = false
+    else
+        zone.patrol_count = zone.patrol_count - 1
+    end
+end
+
+function gcicap.enterCAPZone(flight)
+    flight.intercepting = false
+    local zone = flight.zone
+    zone.patrol_count = zone.patrol_count + 1
+    if not zone.patroled then
+        zone.patroled = true
     end
 end
 
@@ -481,7 +572,7 @@ function gcicap.taskEngage(group)
     local hot = {
         id = 'EngageTargets',
         params = {
-            maxDist = 60,
+            maxDist = 5000,
             targetTypes = { [1] = "Air" },
             priority = 1
         }
@@ -489,39 +580,72 @@ function gcicap.taskEngage(group)
     ctl:pushTask(hot)
 end
 
-function gcicap.vectorOnTarget(group, target, cold)
-    local target_pos = target:getPoint()
-    local ctl = group:getController()
-    local gci_task = {
-        id = 'Mission',
-        params = {
-            route = {
-                points = {
-                    [1] = {
-                        alt = target_pos.y,
-                        x = target_pos.x,
-                        y = target_pos.z,
-                        action = "Turning Point",
-                        type = "Turning Point",
+function gcicap.vectorToTarget(flight, intruder, cold)
+    local target = nil
+    if intruder.group then
+        target = gcicap.getFirstActiveUnit(intruder.group)
+    end
+    -- check if interceptor even still exists
+    if flight.group ~= nil then
+        if target ~= nil then
+            local target_pos = target:getPoint()
+            local ctl = flight.group:getController()
+            local gci_task = {
+                id = 'Mission',
+                params = {
+                    route = {
+                        points = {
+                            [1] = {
+                                alt = target_pos.y,
+                                x = target_pos.x,
+                                y = target_pos.z,
+                                action = "Turning Point",
+                                type = "Turning Point",
+                            }
+                        }
                     }
                 }
             }
-        }
-    }
-    ctl:setTask(gci_task)
+            ctl:setTask(gci_task)
+            intruder.intercepted = true
+            flight.intercepting = true
 
-    if not cold then
-        gcicap.taskEngage(group)
-    end
+            -- zone is now unpatroled
+            if flight.zone then
+                gcicap.leaveCAPZone(flight)
+            end
 
-    if gcicap.debug then
-        env.info("[GCICAP] Vectoring "..group:getName().." on "..target:getName())
+            if not cold then
+                gcicap.taskEngage(flight.group)
+            end
+
+            if gcicap.debug then
+                env.info("[GCICAP] Vectoring "..flight.group:getName().." to "..target:getName())
+            end
+
+            -- reschedule function until either the interceptor or the intruder is dead
+            mist.scheduleFunction(gcicap.vectorToTarget, {flight, intruder, cold}, timer.getTime() + gcicap.interval)
+        -- the target is dead, resume CAP or RTB
+        else
+            if flight.zone_name ~= nil then
+                -- send CAP back to work
+                gcicap.taskWithCAP(flight)
+            end
+            -- send GCI back to homeplate
+            gcicap.taskWithRTB(flight.group, flight.airbase)
+            --flight.rtb = true
+        end
+    else
+        if target ~= nil then
+            intruder.intercepted = false
+        end
     end
 end
 
-function gcicap.taskWithCAP(group, zone, cold)
+function gcicap.taskWithCAP(flight, cold)
+    local group = flight.group
     local ctl = group:getController()
-    local cap_route = gcicap.buildCAPRoute(zone, 10)
+    local cap_route = gcicap.buildCAPRoute(flight.zone.name, 10)
     local cap_task = {
         id = 'Mission',
         params = {
@@ -529,11 +653,42 @@ function gcicap.taskWithCAP(group, zone, cold)
         }
     }
     ctl:setTask(cap_task)
+    gcicap.enterCAPZone(flight)
     if not cold then
         gcicap.taskEngage(group)
     end
     if gcicap.debug then
-        env.info("[GCICAP] Tasking "..group:getName().." with CAP in zone "..zone)
+        env.info("[GCICAP] Tasking "..group:getName().." with CAP in zone "..flight.zone.name)
+    end
+end
+
+function gcicap.taskWithRTB(group, airbase, hot)
+    local ctl = group:getController()
+    local af_pos = mist.utils.makeVec2(airbase:getPoint())
+    local af_id = airbase:getID()
+    local rtb_task = {
+        id = 'Mission',
+        params = {
+            route = {
+                points = {
+                    [1] = {
+                        alt = 50, -- i think this doesn't matter at landing WP
+                        x = af_pos.x,
+                        y = af_pos.y,
+                        aerodromeId = af_id,
+                        type = "Land",
+                        action = "Landing",
+                    }
+                }
+            }
+        }
+    }
+    ctl:setTask(cap_task)
+    if hot then
+        gcicap.taskEngage(group)
+    end
+    if gcicap.debug then
+        env.info("[GCICAP] Tasking "..group:getName().." with RTB to "..airbase:getName())
     end
 end
 
@@ -565,6 +720,7 @@ function gcicap.spawnFighterGroup(side, name, size, airbase, spawn_mode, cold)
     group_data.hidden = gcicap[side].hide_groups
     group_data.country = template_group.country
     group_data.category = template_group.category
+    group_data.task = "CAP"
 
     route.points = {}
     route.points[1] = gcicap.buildFirstWP(airbase, spawn_mode)
@@ -588,7 +744,7 @@ function gcicap.spawnCAP(side, zone, spawn_mode)
     -- increase flight number
     gcicap[side].cap.flight_num = gcicap[side].cap.flight_num + 1
     -- select random airbase (for now) TODO: choose closest airfield
-    local airbase = gcicap[side].airfields[math.random(1,#gcicap[side].airfields)]
+    local airbase = gcicap.getRandomAirfield(side)
     local group_name = "CAP "..side.." "..gcicap[side].cap.flight_num
     -- define size of the flight
     local size = gcicap[side].cap.group_size
@@ -599,23 +755,29 @@ function gcicap.spawnCAP(side, zone, spawn_mode)
     end
     -- actually spawn something
     local group = gcicap.spawnFighterGroup(side, group_name, size, airbase, spawn_mode)
+    gcicap[side].supply = gcicap[side].supply - 1
     -- keep track of the flight
-    gcicap.registerFlight(side, "cap", group, tgt_grp)
-    -- increase patrol count for zone
-    zone.patrol_count = zone.patrol_count + 1
+    local flight = gcicap.registerFlight(side, "cap", airbase, group, zone)
     -- task the group, for some odd reason we have to wait until we use setTask
     -- on a freshly spawned group.
-    mist.scheduleFunction(gcicap.taskWithCAP, {group, zone.name}, timer.getTime() + 5)
+    mist.scheduleFunction(gcicap.taskWithCAP, {flight}, timer.getTime() + 1)
     return group
 end
 
-function gcicap.spawnGCI(side, target)
+function gcicap.spawnGCI(side, intruder)
     -- increase flight number
     gcicap[side].gci.flight_num = gcicap[side].gci.flight_num + 1
     -- select closest airfield to unit
     local airbase = gcicap.getClosestAirfieldToUnit(side, target)
-    local tgt_grp = target:getGroup()
-    local tgt_units = tgt_grp:getUnits()
+    if airbase then
+        airbase = airbase.airbase
+    else
+        if gcicap.debug then
+            env.info("[GCICAP] Couldn't find close airfield for GCI. Choosing one at random.")
+        end
+        airbase = gcicap.getRandomAirfield(side)
+    end
+    local tgt_units = intruder.group:getUnits()
     local group_name = "GCI "..side.." "..gcicap[side].gci.flight_num
     -- define size of the flight
     local size = gcicap[side].gci.group_size
@@ -628,10 +790,11 @@ function gcicap.spawnGCI(side, target)
     end
     -- actually spawn something
     local group = gcicap.spawnFighterGroup(side, group_name, size, airbase, gcicap[side].gci.spawn_mode)
+    gcicap[side].supply = gcicap[side].supply - 1
     -- keep track of the flight
-    gcicap.registerFlight(side, "gci", group, tgt_grp)
+    local flight = gcicap.registerFlight(side, "gci", airbase, group, intruder)
     -- vector the interceptor group on the target the first time.
-    mist.scheduleFunction(gcicap.vectorOnTarget, {group, target}, timer.getTime() + 5)
+    mist.scheduleFunction(gcicap.vectorToTarget, {flight, intruder}, timer.getTime() + 1)
     return group
 end
 
@@ -639,30 +802,28 @@ function gcicap.manageCAP(side)
     -- remove any dead flights from the list
     for i = 1, #gcicap[side].cap.flights do
         if gcicap[side].cap.flights[i].group == nil then
-            local name = gcicap[side].cap.flights[i].group_name
-            gcicap.removeFlight(name)
+            local flight = gcicap[side].cap.flights[i]
+            -- if the flight was intercepting we don't need to
+            -- remove it from the CAP zone because it already did
+            if not flight.intercepting then
+                gcicap.leaveCAPZone(flight)
+            end
+            -- finally remove the flight
+            gcicap.removeFlight(flight.group_name)
         end
     end
 
     for i = 1, #gcicap[side].cap.zones do
-        -- check if zone is patroled
-        local patroled = false
-        local zone_name = gcicap[side].cap.zones[i].name
-        -- also count the number of CAPs working in this zone
-        local patrol_count = 0
-        for n = 1, #gcicap[side].cap.flights do
-            if gcicap[side].cap.flights[n].zone_name == zone_name and
-                (not gcicap[side].cap.flights[n].rtb or
-                 not gcicap[side].cap.flights[n].intercepting) then
-                patroled = true
-                patrol_count = patrol_count + 1
+        local zone = gcicap[side].cap.zones[i]
+        if gcicap.debug then
+            if zone.patroled then
+                env.info("[GCICAP] zone: "..zone.name.." IS patroled")
+            else
+                env.info("[GCICAP] zone: "..zone.name.." IS NOT patroled")
             end
         end
-        gcicap[side].cap.zones[i].patroled = patroled
-        gcicap[side].cap.zones[i].patrol_count = patrol_count
-
         -- see if we can send a new CAP into the zone
-        if not patroled then
+        if not zone.patroled then
             -- first check if we already hit the maximum amounts of routine CAP groups
             if #gcicap[side].cap.flights < gcicap[side].cap.groups_count then
                 -- check if we limit resources and if we have enough supplies
@@ -677,7 +838,51 @@ function gcicap.manageCAP(side)
     end
 end
 
-function gcicap.manageCGI(side)
+function gcicap.handleIntrusion(side)
+    for i = 1, #gcicap[side].intruders do
+        local intruder = gcicap[side].intruders[i]
+        -- check if we need to do something about him
+        if not intruder.intercepted and intruder.unit then
+            -- check if we have something to work with
+            if #gcicap[side].cap.flights > 0 or
+                #gcicap[side].gci.flights < gcicap[side].gci.groups_count then
+
+                -- get closest unit
+                local closest_flights = gcicap.getClosestFlightsToUnit(side, intruder.unit)
+                local cap_avail = false
+                for j = 1, #closest_flights do
+                    closest_cap = closest_flights[j]
+                    cap_avail = (not closest_cap.flight.rtb) and (not closest_cap.flight.intercepting)
+                    if cap_avail then
+                        if gcicap.debug then
+                            env.info("[GCICAP] Found close CAP flight which is available for tasking")
+                        end
+                        break
+                    end
+                end
+                if cap_avail then
+                    -- check if we have a airfield which is closer to the unit than the CAP group
+                    closest_af = gcicap.getClosestAirfieldToUnit(side, intruder.unit)
+                    if closest_cap.distance < closest_af.distance then
+                        -- task CAP flight with intercept
+                        gcicap.vectorToTarget(closest_cap.flight, intruder)
+                        if gcicap.debug then
+                            env.info("[GCICAP] No occupied airfield is closer than the CAP flight. Vectoring.")
+                        end
+                    end
+                else
+                    if not gcicap[side].limit_resources or
+                        (gcicap[side].limit_resources and gcicap[side].supply > 0) then
+                        if gcicap.debug then
+                            env.info("[GCICAP] Airfield closer to intruder. Starting GCI.")
+                        end
+                        -- spawn CGI
+                        gcicap.spawnGCI(side, intruder)
+                    end
+                end
+            end
+        end
+    end
 end
 
 function gcicap.init()
@@ -738,28 +943,19 @@ function gcicap.main()
         -- update list of occupied airfields
         gcicap[side].airfields = gcicap.getAirfields(side)
         -- update list of all aircraft
-        gcicap[side].active_aircraft = gcicap.getAllActiveAircraft(side)
+        gcicap[side].active_aircraft = gcicap.getAllActiveAircrafts(side)
         -- update list of all EWR
         gcicap[side].active_ewr = gcicap.getAllActiveEWR(side)
-        -- check for airspace intrusion
     end
     -- check for airspace intrusions after updating all the lists
-    gcicap.checkForAirspaceIntrusion("red")
-    gcicap.checkForAirspaceIntrusion("blue")
+    for i, side in ipairs(gcicap.sides) do
+        gcicap.manageCAP(side)
+        gcicap.checkForAirspaceIntrusion(side)
+        gcicap.handleIntrusion(side)
+    end
 end
 
 do
-    -- local airbase = Airbase.getByName("Gudauta")
-    -- local target = Unit.getByName("player")
-    -- local target_pos = target:getPoint()
-    -- local route = gcicap.buildCAPRoute(target)
-
-    -- local gci = gcicap.spawnFighterGroup("red", "GCI Test", 2, airbase, "takeoff")
-    -- local gci = Group.getByName("GCI Test")
-    -- local cap = gcicap.spawnFighterGroup("red", "CAP Test", 2, airbase, "CAP", "redCAPzone1")
-
-    --mist.scheduleFunction(gcicap.vectorOnTarget, {gci, target}, timer.getTime() + 10)
-
     gcicap.init()
-    mist.scheduleFunction(gcicap.main, {}, timer.getTime() + 15, 15)
+    mist.scheduleFunction(gcicap.main, {}, timer.getTime() + gcicap.interval, gcicap.interval)
 end
