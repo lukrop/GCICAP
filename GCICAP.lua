@@ -137,6 +137,7 @@ gcicap.blue.border_group = 'blueborder'
 gcicap.unit_template_prefix = '__TMP__'
 
 gcicap.sides = { "red", "blue" }
+gcicap.tasks = { "cap", "gci" }
 
 -- Time interval in which ongoing intercepts are renewed, NOTE: Do not use too small a value
 -- as it interrupts intercepts and resets limit on active GCIs which can cause mission to be spammed by aircraft
@@ -326,13 +327,13 @@ function gcicap.getClosestAirfieldToUnit(side, unit)
         return
     end
 
-    local unit_pos = unit:getPosition()
+    local unit_pos = mist.utils.makeVec2(unit:getPoint())
     local min_distance = -1
     local closest_af = nil
 
     for i = 1, #airfields do
-        local af = Airbase.getByName(#airfields[i].name)
-        local af_pos = af:getPosition()
+        local af = airfields[i]
+        local af_pos = mist.utils.makeVec2(af:getPoint())
         local distance = mist.utils.get2DDist(unit_pos, af_pos)
 
         if distance < min_distance or min_distance == -1 then
@@ -417,6 +418,62 @@ function gcicap.buildCAPRoute(zone, wp_count)
     local route = {}
     route.points = points
     return route
+end
+
+function gcicap.getFlightIndex(group)
+    if type(group) ~= "string" and group:getName() then
+        group = group:getName()
+    end
+    for i, side in ipairs(gcicap.sides) do
+        for j, task in ipairs(gcicap.tasks) do
+            for n = 1, #gcicap[side][task].flights do
+                if gcicap[side][task].flights[n].group_name == group then
+                    return {side = side, task = task, index = n}
+                end
+            end
+        end
+    end
+    return false
+end
+
+function gcicap.getFlight(group)
+    f = gcicap.getFlightIndex(group)
+    return gcicap[f.side][f.task].flights[f.index]
+end
+
+
+function gcicap.registerFlight(side, task, group, param)
+    local flight = {}
+    flight.group_name = group:getName()
+    flight.group = group
+    if task == "cap" then
+        flight.zone_name = param
+    elseif task == "gci" then
+        flight.target_group = param
+    end
+    if task == "cap" then
+        flight.intercepting = false
+    end
+    flight.rtb = false
+    table.insert(gcicap[side][task].flights, flight)
+end
+
+function gcicap.removeFlight(name)
+    f = getFlightIndex(name)
+    table.remove(gcicap[f.side][f.task].flights, f.index)
+end
+
+function gcicap.setFlightIsRTB(group)
+    local flight = gcicap.getFlight(group)
+    flight.rtb = true
+end
+
+function gcicap.setFlightIsIntercepting(group, intercepting, target)
+    local flight = gcicap.getFlight(group)
+    flight.intercepting = intercepting
+    if target then
+        flight.target = target
+    end
 end
 
 function gcicap.taskEngage(group)
@@ -533,22 +590,94 @@ function gcicap.spawnCAP(side, zone, spawn_mode)
     -- select random airbase (for now) TODO: choose closest airfield
     local airbase = gcicap[side].airfields[math.random(1,#gcicap[side].airfields)]
     local group_name = "CAP "..side.." "..gcicap[side].cap.flight_num
+    -- define size of the flight
     local size = gcicap[side].cap.group_size
     if size == "randomized" then
         size = math.random(1,2)*2
     else
         size = tonumber(size)
     end
+    -- actually spawn something
     local group = gcicap.spawnFighterGroup(side, group_name, size, airbase, spawn_mode)
+    -- keep track of the flight
+    gcicap.registerFlight(side, "cap", group, tgt_grp)
+    -- increase patrol count for zone
+    zone.patrol_count = zone.patrol_count + 1
     -- task the group, for some odd reason we have to wait until we use setTask
     -- on a freshly spawned group.
-    mist.scheduleFunction(gcicap.taskWithCAP, {group, zone}, timer.getTime() + 5)
+    mist.scheduleFunction(gcicap.taskWithCAP, {group, zone.name}, timer.getTime() + 5)
+    return group
+end
+
+function gcicap.spawnGCI(side, target)
+    -- increase flight number
+    gcicap[side].gci.flight_num = gcicap[side].gci.flight_num + 1
+    -- select closest airfield to unit
+    local airbase = gcicap.getClosestAirfieldToUnit(side, target)
+    local tgt_grp = target:getGroup()
+    local tgt_units = tgt_grp:getUnits()
+    local group_name = "GCI "..side.." "..gcicap[side].gci.flight_num
+    -- define size of the flight
+    local size = gcicap[side].gci.group_size
+    if size == "randomized" then
+        size = math.random(1,2)*2
+    elseif size == "dynamic" then
+        size = #tgt_units
+    else
+        size = tonumber(size)
+    end
+    -- actually spawn something
+    local group = gcicap.spawnFighterGroup(side, group_name, size, airbase, gcicap[side].gci.spawn_mode)
+    -- keep track of the flight
+    gcicap.registerFlight(side, "gci", group, tgt_grp)
+    -- vector the interceptor group on the target the first time.
+    mist.scheduleFunction(gcicap.vectorOnTarget, {group, target}, timer.getTime() + 5)
     return group
 end
 
 function gcicap.manageCAP(side)
+    -- remove any dead flights from the list
     for i = 1, #gcicap[side].cap.flights do
+        if gcicap[side].cap.flights[i].group == nil then
+            local name = gcicap[side].cap.flights[i].group_name
+            gcicap.removeFlight(name)
+        end
     end
+
+    for i = 1, #gcicap[side].cap.zones do
+        -- check if zone is patroled
+        local patroled = false
+        local zone_name = gcicap[side].cap.zones[i].name
+        -- also count the number of CAPs working in this zone
+        local patrol_count = 0
+        for n = 1, #gcicap[side].cap.flights do
+            if gcicap[side].cap.flights[n].zone_name == zone_name and
+                (not gcicap[side].cap.flights[n].rtb or
+                 not gcicap[side].cap.flights[n].intercepting) then
+                patroled = true
+                patrol_count = patrol_count + 1
+            end
+        end
+        gcicap[side].cap.zones[i].patroled = patroled
+        gcicap[side].cap.zones[i].patrol_count = patrol_count
+
+        -- see if we can send a new CAP into the zone
+        if not patroled then
+            -- first check if we already hit the maximum amounts of routine CAP groups
+            if #gcicap[side].cap.flights < gcicap[side].cap.groups_count then
+                -- check if we limit resources and if we have enough supplies
+                -- if we don't limit resource or have enough supplies we spawn
+                if not gcicap[side].limit_resources or
+                    (gcicap[side].limit_resources and gcicap[side].supply > 0) then
+                    -- finally spawn it
+                    gcicap.spawnCAP(side, gcicap[side].cap.zones[i], gcicap[side].cap.spawn_mode)
+                end
+            end
+        end
+    end
+end
+
+function gcicap.manageCGI(side)
 end
 
 function gcicap.init()
@@ -559,6 +688,7 @@ function gcicap.init()
         gcicap[side].intruders = {}
         gcicap[side].cap.zones = {}
         gcicap[side].cap.flights = {}
+        gcicap[side].gci.flights = {}
         gcicap[side].cap.flight_num = 0
         gcicap[side].gci.flight_num = 0
         gcicap[side].airfields = gcicap.getAirfields(side)
@@ -576,10 +706,10 @@ function gcicap.init()
                     pos = point,
                     radius = size,
                     patroled = false,
+                    patrol_count = 0,
                 }
             end
 
-            -- loop through all flights
             for i = 1, gcicap[side].cap.groups_count do
                 local spawn_mode = "takeoff"
                 if gcicap[side].cap.start_airborne then
@@ -592,18 +722,12 @@ function gcicap.init()
                     zone = gcicap[side].cap.zones[math.random(1, gcicap[side].cap.zones_count)]
                 end
                 -- actually spawn the group
-                local grp = gcicap.spawnCAP(side, zone.name, spawn_mode)
+                local grp = gcicap.spawnCAP(side, zone, spawn_mode)
 
                 if gcicap[side].cap.start_airborne then
                     -- if we airstart telport the group into the CAP zone
-                    mist.teleportInZone(grp, zone.name)
+                    -- mist.teleportInZone(grp, zone.name)
                 end
-
-                gcicap[side].cap.flights[i] = {
-                    group = grp,
-                    zone_name = zone,
-                    intercepting = false,
-                }
             end
         end
     end
