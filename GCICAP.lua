@@ -100,9 +100,9 @@ gcicap.blue.gci.messages = true
 -- how long a GCI message will be shown in seconds
 gcicap.gci.message_time = 5
 
--- display GCI messages with metric or imperial units.
-gcicap.red.gci.messages_imperial = false
-gcicap.blue.gci.messages_imperial = true
+-- display GCI messages with metric measurment. If false the imperial system is used.
+gcicap.red.gci.messages_metric = true
+gcicap.blue.gci.messages_metric = false
 
 -- names of groups which will receive GCI messages
 -- leave blank for all groups of coalition
@@ -167,6 +167,10 @@ gcicap.tasks = { "cap", "gci" }
 -- wether to also acquire targets by AWACS aircraft
 gcicap.red.awacs = true
 gcicap.blue.awacs = true
+
+-- shortcut to the bullseye
+gcicap.red.bullseye = coalition.getMainRefPoint(coalition.side.RED)
+gcicap.blue.bullseye = coalition.getMainRefPoint(coalition.side.BLUE)
 
 function gcicap.coalitionToSide(coal)
     if coal == coalition.side.NEUTRAL then return "neutral"
@@ -300,6 +304,7 @@ function gcicap.checkForAirspaceIntrusion(side)
             local ac_intruded = false
             local ac_pos = {}
             local ac_group = nil
+            local intruder_num = 0
             local ewr = nil
             if ac ~= nil then
                 ac_pos = ac:getPosition()
@@ -332,14 +337,16 @@ function gcicap.checkForAirspaceIntrusion(side)
                         for j = 1, #gcicap[side].intruders do
                             if gcicap[side].intruders[j].name == ac_group:getName() then
                                 in_list = true
+                                intruder_num = j
                                 break
                             end
                         end
                         if not in_list then
                             intruder_count = intruder_count + 1
                             if gcicap.log then
-                                env.info("[GCICAP] Unit: "..ac:getName()..
-                                         " intruded airspace of "..side.." detected by "..ewr:getGroup():getName())
+                                env.info("[GCICAP] "..ac_group:getName().." ("..ac:getName()..
+                                         ") intruded airspace of "..side.." detected by "..ewr:getGroup():getName()..
+                                         " ("..ewr:getName()").")
                             end
 
                             intruder = {
@@ -354,10 +361,48 @@ function gcicap.checkForAirspaceIntrusion(side)
                                 intercepted = false,
                             }
                             table.insert(gcicap[side].intruders, intruder)
+                            intruder_num = #gcicap[side].intruders
                         end
 
+                        -- send message to all units of coaltion or some specified groups
+                        -- that we have a intruder
                         if gcicap.gci.messages then
-                            -- show gci messages here
+                            local par = {
+                                units = { ac:getName() },
+                                ref = gcicap[side].bullseye,
+                                alt = ac_pos.y,
+                            }
+                            -- do we want to display in metric units?
+                            if gcicap[side].gci.messages_metric then
+                                par.metric = true
+                            end
+
+                            local msg_for = {}
+                            -- if groups are specified find their units names and add them to the list
+                            if #gcicap[side].gci.message_for > 0 then
+                                msg_for.units = {}
+                                for g, group_name in pairs(gcicap[side].gci.message_for) do
+                                    group = Group.getByName(group_name)
+                                    if group ~= nil then
+                                        for u, unit in pairs(group:getUnits()) do
+                                            table.insert(msg_for.units, unit:getName())
+                                        end
+                                    end
+                                end
+                            else
+                                msg_for.coa = { side }
+                            end
+                            -- get the bearing, range and altitude from bullseye to intruder
+                            local bra = mist.getBRString(par)
+                            local bra_string = "Airpsace intrusion! BRA from bullseye "..bra
+                            local msg = {
+                                text = bra_string,
+                                displayTime = gcicap.gci.message_time,
+                                msgFor = msg_for,
+                                name = "gcicap.gci.msg"..intruder_num,
+                            }
+                            -- finally send the message
+                            mist.message.add(msg)
                         end
                     end -- if ac_intruded
                 end -- if ac_detected
@@ -702,7 +747,8 @@ function gcicap.vectorToTarget(flight, intruder, cold)
             end
 
             if gcicap.log then
-                env.info("[GCICAP] Vectoring "..flight.group:getName().." to "..target:getName())
+                env.info("[GCICAP] Vectoring "..flight.group:getName().." to "..
+                         intruder.group:getName().." ("..target:getName()..").")
             end
 
             -- reschedule function until either the interceptor or the intruder is dead
@@ -738,6 +784,7 @@ function gcicap.taskWithCAP(flight, cold)
     }
     ctl:setTask(cap_task)
     gcicap.enterCAPZone(flight)
+    ctl:setOption(AI.Option.Air.id.RADAR_USING, AI.Option.Air.val.RADAR_USING.FOR_SEARCH_IF_REQUIRED)
 
     if not cold then
         gcicap.taskEngage(group)
