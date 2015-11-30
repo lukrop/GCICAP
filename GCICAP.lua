@@ -38,6 +38,19 @@ gcicap.blue.cap = {}
 gcicap.cap = {}
 gcicap.gci = {}
 
+-- enable/disable log messages completly
+gcicap.log = true
+-- sets how verbose the log output will be. Possible values are "info",
+-- "warning" and "error". I recommend "error" for production.
+gcicap.log_level = "info"
+
+-- interval, in seconds, of main and vectorToTarget functions
+gcicap.interval = 30
+
+-- CAP units only engage if enemy units intrude their airspace
+gcicap.red.borders_enabled = false
+gcicap.blue.borders_enabled = false
+
 -- CAP minimum and maximum altitudes in meters
 gcicap.cap.min_alt = 4500
 gcicap.cap.max_alt = 7500
@@ -47,7 +60,8 @@ gcicap.cap.max_alt = 7500
 -- ground control (EWR).
 gcicap.cap.max_engage_distance = 30000
 
-gcicap.cap.waypoints_count = 4
+-- amount of waypoints inside the CAP zone.
+gcicap.cap.waypoints_count = 10
 
 -- set to true for CAP flight to start airborne at script initialisation,
 -- false for taking off from airfield at start
@@ -90,9 +104,11 @@ gcicap.gci.message_time = 5
 gcicap.red.gci.messages_imperial = false
 gcicap.blue.gci.messages_imperial = true
 
--- CAP units only engage if enemy units intrude their airspace
-gcicap.red.cap.borders_enabled = false
-gcicap.blue.cap.borders_enabled = false
+-- names of groups which will receive GCI messages
+-- leave blank for all groups of coalition
+-- e.g. gcicap.red.gci.messages_to = { "my group 1", "GCI Flight" }
+gcicap.red.gci.messages_to = {}
+gcicap.red.gci.messages_to = {}
 
 -- can be "parking", "takeoff" or "air" and defines the way the fighters spawn
 -- takeoff is NOT RECOMMENDED currently since their occur timing issues with tasking
@@ -108,10 +124,13 @@ gcicap.blue.gci.spawn_mode = "parking"
 gcicap.blue.hide_groups = false
 gcicap.red.hide_groups = false
 
--- wether the side doe combat air patrols.
--- if set to false the side will only do GCI
+-- wether the side does spawn groups for combat air patrols.
 gcicap.red.cap.enabled = true
 gcicap.blue.cap.enabled = true
+
+-- wether the side does spawn groups for ground controlled intercepts
+gcicap.red.gci.enabled = true
+gcicap.blue.gci.enabled = true
 
 -- if set to true limits the amount of groups a side can spawn.
 gcicap.red.limit_resources = false
@@ -123,13 +142,10 @@ gcicap.blue.supply = 24
 
 -- time limit, in seconds, after which a group gets removed, if a unit of it is still
 -- on the ground. Consider big airfields and long taxi ways.
-gcicap.stuck_limit = 1080
+-- gcicap.stuck_limit = 1080
 
 -- radius for cleaning up wrecks around airfields
-gcicap.cleanup_radius = 3000
-
--- enable debug messages
-gcicap.debug = true
+-- gcicap.cleanup_radius = 3000
 
 -- name of the triggerzone which defines a CAP zone, postfixed with the number of
 -- the zone. e.g. "redCAPzone3" or "blueCAPzone1".
@@ -142,13 +158,15 @@ gcicap.blue.border_group = 'blueborder'
 
 -- i'd vouch for a better default but for the sake of backwards compatibility with
 -- current missions we go with the old default.
-gcicap.unit_template_prefix = '__TMP__'
+gcicap.template_prefix = '__TMP__'
+gcicap.template_count = 4
 
 gcicap.sides = { "red", "blue" }
 gcicap.tasks = { "cap", "gci" }
 
--- interval, in seconds, of main and vectorToTarget functions
-gcicap.interval = 30
+-- wether to also acquire targets by AWACS aircraft
+gcicap.red.awacs = true
+gcicap.blue.awacs = true
 
 function gcicap.coalitionToSide(coal)
     if coal == coalition.side.NEUTRAL then return "neutral"
@@ -184,7 +202,7 @@ function gcicap.getAirfields(side)
         end
     end
 
-    if gcicap.debug and #gcicap_airfields == 0 then
+    if gcicap.log and #gcicap_airfields == 0 then
         env.warning("[GCICAP] No airbases for " .. side .. " found.")
     end
     return gcicap_airfields
@@ -205,8 +223,8 @@ function gcicap.getAllActiveAircrafts(side)
             end
         end
     end
-    if gcicap.debug and #active_aircraft == 0 then
-        env.info("[GCICAP] No active aircraft for " .. side)
+    if gcicap.log and #active_aircraft == 0 then
+        env.warning("[GCICAP] No active aircraft for " .. side)
     end
     return active_aircraft
 end
@@ -226,17 +244,19 @@ function gcicap.getAllActiveEWR(side)
                 if vec_type == "55G6 EWR"
                     or vec_type == "1L13 EWR"
                     or vec_type == "Hawk sr"
-                    or vec_type == "Patriot str"
-                    or vec_type == "A-50"
-                    or vec_type == "E-2D"
-                    or vec_type == "E-3A" then
+                    or vec_type == "Patriot str" then
+                    table.insert(active_ewr, vec)
+                end
+                if (vec_type == "A-50" and gcicap[side].awacas) or
+                    or (vec_type == "E-2D" and gcicap[side].awacs)
+                    or (vec_type == "E-3A" and gcicap[side].awacs) then
                     table.insert(active_ewr, vec)
                 end
             end
         end
     end
-    if gcicap.debug and #active_ewr == 0 then
-        env.info ("[GCICAP] No active EWR for " .. side)
+    if gcicap.log and #active_ewr == 0 then
+        env.warning ("[GCICAP] No active EWR for " .. side)
     end
     return active_ewr
 end
@@ -299,7 +319,7 @@ function gcicap.checkForAirspaceIntrusion(side)
 
                 if ac_detected then
                     -- do we check borders?
-                    if gcicap.cap.borders then
+                    if gcicap[side].borders then
                         ac_intruded = mist.pointInPolygon(ac_pos, border)
                     else
                         -- if not the aircarft is always intruding
@@ -317,7 +337,7 @@ function gcicap.checkForAirspaceIntrusion(side)
                         end
                         if not in_list then
                             intruder_count = intruder_count + 1
-                            if gcicap.debug then
+                            if gcicap.log then
                                 env.info("[GCICAP] Unit: "..ac:getName()..
                                          " intruded airspace of "..side.." detected by "..ewr:getGroup():getName())
                             end
@@ -364,8 +384,8 @@ function gcicap.getClosestAirfieldToUnit(side, unit)
     local airfields = gcicap[side].airfields
 
     if #airfields == 0 then
-        if gcicap.debug then
-            env.error("[GCICAP] There are no airfields of side " .. side)
+        if gcicap.log then
+            env.warning("[GCICAP] There are no airfields of side " .. side)
         end
         return false
     end
@@ -393,7 +413,7 @@ function gcicap.getClosestFlightsToUnit(side, unit)
     local units = gcicap[side].cap.flights
     local closest_flights = {}
     if #units == 0 then
-        if gcicap.debug then
+        if gcicap.log then
             env.info("[GCICAP] No CAP flights of side "..side.." active")
         end
         return nil
@@ -485,7 +505,7 @@ function gcicap.buildCAPRoute(zone, wp_count)
         end
     end
 
-    if gcicap.debug then
+    if gcicap.log then
         env.info("[GCICAP] Built CAP route with "..wp_count.." waypoints in "..zone)
     end
 
@@ -547,7 +567,7 @@ end
 
 function gcicap.removeFlight(name)
     f = gcicap.getFlightIndex(name)
-    if gcicap.debug then
+    if gcicap.log then
         env.info("[GCICAP] Removing flight: "..name)
     end
     local flight = gcicap[f.side][f.task].flights[f.index]
@@ -671,7 +691,7 @@ function gcicap.vectorToTarget(flight, intruder, cold)
             if flight.zone and not flight.intercepting then
                 gcicap.leaveCAPZone(flight)
             end
- 
+
             intruder.intercepted = true
             flight.intercepting = true
             ctl:setTask(gci_task)
@@ -681,7 +701,7 @@ function gcicap.vectorToTarget(flight, intruder, cold)
                 gcicap.taskEngageGroup(flight.group, intruder.group)
             end
 
-            if gcicap.debug then
+            if gcicap.log then
                 env.info("[GCICAP] Vectoring "..flight.group:getName().." to "..target:getName())
             end
 
@@ -722,7 +742,7 @@ function gcicap.taskWithCAP(flight, cold)
     if not cold then
         gcicap.taskEngage(group)
     end
-    if gcicap.debug then
+    if gcicap.log then
         env.info("[GCICAP] Tasking "..group:getName().." with CAP in zone "..flight.zone.name)
     end
 end
@@ -765,13 +785,13 @@ function gcicap.taskWithRTB(flight, airbase, cold)
         gcicap.taskEngage(group, 10000)
     end
 
-    if gcicap.debug then
+    if gcicap.log then
         env.info("[GCICAP] Tasking "..group:getName().." with RTB to "..airbase:getName())
     end
 end
 
 function gcicap.spawnFighterGroup(side, name, size, airbase, spawn_mode, cold)
-    local template_unit = Unit.getByName(gcicap.unit_template_prefix..side..math.random(1, 4))
+    local template_unit = Unit.getByName(gcicap.template_prefix..side..math.random(1, gcicap.template_count))
     local template_group = mist.getGroupData(template_unit:getGroup():getName())
     local template_unit_data = template_group.units[1]
     local airbase_pos = airbase:getPoint()
@@ -805,12 +825,12 @@ function gcicap.spawnFighterGroup(side, name, size, airbase, spawn_mode, cold)
     group_data.route = route
 
     if mist.groupTableCheck(group_data) then
-        if gcicap.debug then
+        if gcicap.log then
             env.info("[GCICAP] Spawning fighter group "..name.." at "..airbase:getName())
         end
         mist.dynAdd(group_data)
     else
-        if gcicap.debug then
+        if gcicap.log then
             env.error("[GCICAP] Couldn't spawn group with following groupTable: ")
             env.error(mist.utils.serialize("[GCICAP] group_data", group_data))
         end
@@ -831,7 +851,7 @@ function gcicap.despawnHandler(event)
         if flight then
             if event.id == world.event.S_EVENT_PILOT_DEAD then
                 -- it was the last unit of the flight so remove the flight
-                if group:getSize() == 1 then 
+                if group:getSize() == 1 then
                     gcicap.removeFlight(group:getName())
                 end
             else
@@ -842,7 +862,7 @@ function gcicap.despawnHandler(event)
                     for u, unit in pairs (group:getUnits()) do
                         if unit:inAir() then all_landed = false end
                     end
-                    -- if al units are on the ground remove the flight and 
+                    -- if al units are on the ground remove the flight and
                     -- remove the units from the game world after 300 seconds
                     if all_landed then
                         gcicap.removeFlight(group:getName())
@@ -888,8 +908,8 @@ function gcicap.spawnGCI(side, intruder)
     if airbase then
         airbase = airbase.airbase
     else
-        if gcicap.debug then
-            env.info("[GCICAP] Couldn't find close airfield for GCI. Choosing one at random.")
+        if gcicap.log then
+            env.warning("[GCICAP] Couldn't find close airfield for GCI. Choosing one at random.")
         end
         airbase = gcicap.getRandomAirfield(side)
     end
@@ -922,9 +942,9 @@ function gcicap.manageCAP(side)
 
     for i = 1, #gcicap[side].cap.zones do
         local zone = gcicap[side].cap.zones[i]
-        
+
         -- see if we can send a new CAP into the zone
-        if not zone.patroled then    
+        if not zone.patroled then
             -- first check if we already hit the maximum amounts of routine CAP groups
             if #gcicap[side].cap.flights < gcicap[side].cap.groups_count then
                 -- check if we limit resources and if we have enough supplies
@@ -939,7 +959,7 @@ function gcicap.manageCAP(side)
             patroled_zones = patroled_zones + 1
         end
     end
-    if gcicap.debug then
+    if gcicap.log then
         env.info("[GCICAP] "..side..": patrols in "..patroled_zones.."/"..gcicap[side].cap.zones_count.." zones.")
     end
 end
@@ -961,7 +981,7 @@ function gcicap.handleIntrusion(side)
                     closest_cap = closest_flights[j]
                     cap_avail = (not closest_cap.flight.rtb) and (not closest_cap.flight.intercepting)
                     if cap_avail then
-                        if gcicap.debug then
+                        if gcicap.log then
                             env.info("[GCICAP] Found close CAP flight which is available for tasking")
                         end
                         break
@@ -977,11 +997,13 @@ function gcicap.handleIntrusion(side)
                 else
                     if not gcicap[side].limit_resources or
                         (gcicap[side].limit_resources and gcicap[side].supply > 0) then
-                        if gcicap.debug then
+                        if gcicap.log then
                             env.info("[GCICAP] Airfield closer to intruder than CAP flight. Starting GCI.")
                         end
-                        -- spawn CGI
-                        gcicap.spawnGCI(side, intruder)
+                        if gcicap[side].gci.enabled then
+                            -- spawn CGI
+                            gcicap.spawnGCI(side, intruder)
+                        end
                     end
                 end
             end
@@ -991,7 +1013,7 @@ end
 
 function gcicap.init()
     for i, side in ipairs(gcicap.sides) do
-        if gcicap[side].cap.borders_enabled then
+        if gcicap[side].borders_enabled then
             gcicap[side].border = mist.getGroupPoints(gcicap[side].border_group)
         end
         gcicap[side].intruders = {}
@@ -1031,12 +1053,13 @@ function gcicap.init()
                     zone = gcicap[side].cap.zones[math.random(1, gcicap[side].cap.zones_count)]
                 end
                 -- actually spawn the group
-                local grp = gcicap.spawnCAP(side, zone, spawn_mode)
+                --local grp = gcicap.spawnCAP(side, zone, spawn_mode)
+                -- delay the spawn by 30 seconds after one another
+                mist.scheduleFunction(gcicap.spawnCAP, {side, zone, spawn_mode}, timer.getTime() + ((i-1 * 30)))
 
                 if gcicap[side].cap.start_airborne then
                     -- if we airstart telport the group into the CAP zone
-                    --env.info("[GCICAP] group name: "..grp:getName())
-                    --env.info("[GCICAP] zone name: "..zone.name)
+                    -- seems to work only with ME units
                     --mist.scheduleFunction(mist.teleportInZone, {grp:getName(), zone.name}, timer.getTime() + 10)
                 end
             end
