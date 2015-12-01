@@ -472,7 +472,7 @@ function gcicap.getClosestFlightsToUnit(side, unit)
         if u then
           local u_pos = mist.utils.makeVec2(u:getPoint())
           local distance = mist.utils.get2DDist(unit_pos, u_pos)
-          table.insert(closest_flights, {flight = units[i], distance = distance })
+          table.insert(closest_flights, {flight = flights[i], distance = distance })
         else
           break
         end
