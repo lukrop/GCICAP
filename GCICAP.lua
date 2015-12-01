@@ -927,20 +927,19 @@ function gcicap.despawnHandler(event)
           gcicap.removeFlight(group:getName())
         end
       else
-        -- check if the flight is order to RTB
-        if flight.rtb then
-          -- check if all units of the group are on the ground
-          local all_landed = true
-          for u, unit in pairs (group:getUnits()) do
-            if unit:inAir() then all_landed = false end
-          end
-          -- if al units are on the ground remove the flight and
-          -- remove the units from the game world after 300 seconds
-          if all_landed then
-            gcicap.removeFlight(group:getName())
-            gcicap[side].supply = gcicap[side].supply + 1
-            mist.scheduleFunction(Group.destroy, {group}, timer.getTime() + 300)
-          end
+        -- check if all units of the group are on the ground or damaged
+        local all_landed = true
+        local someone_damaged = false
+        for u, unit in pairs (group:getUnits()) do
+          if unit:inAir() then all_landed = false end
+          if unit:getLife0() > unit:getLife() then someone_damaged = true end
+        end
+        -- if al units are on the ground remove the flight and
+        -- remove the units from the game world after 300 seconds
+        if (all_landed and flight.rtb) or (all_landed and someone_damaged) then
+          gcicap.removeFlight(group:getName())
+          gcicap[side].supply = gcicap[side].supply + 1
+          mist.scheduleFunction(Group.destroy, {group}, timer.getTime() + 300)
         end
       end
     end
