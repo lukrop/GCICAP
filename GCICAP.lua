@@ -455,9 +455,9 @@ end
 -- returns the closest flights, of given side, and their distances to the given unit
 function gcicap.getClosestFlightsToUnit(side, unit)
   if unit == nil then return nil end
-  local units = gcicap[side].cap.flights
+  local flights = gcicap[side].cap.flights
   local closest_flights = {}
-  if #units == 0 then
+  if #flights == 0 then
     if gcicap.log then
       env.info("[GCICAP] No CAP flights of side "..side.." active")
     end
@@ -466,12 +466,16 @@ function gcicap.getClosestFlightsToUnit(side, unit)
     local unit_pos = mist.utils.makeVec2(unit:getPoint())
     local min_distance = -1
     --local closest_flight = nil
-    for i = 1, #units do
-      if units[i].group then
-        local u = gcicap.getFirstActiveUnit(units[i].group)
-        local u_pos = mist.utils.makeVec2(u:getPoint())
-        local distance = mist.utils.get2DDist(unit_pos, u_pos)
-        table.insert(closest_flights, {flight = units[i], distance = distance })
+    for i = 1, #flights do
+      if flights[i].group then
+        local u = gcicap.getFirstActiveUnit(flights[i].group)
+        if u then
+          local u_pos = mist.utils.makeVec2(u:getPoint())
+          local distance = mist.utils.get2DDist(unit_pos, u_pos)
+          table.insert(closest_flights, {flight = units[i], distance = distance })
+        else
+          break
+        end
       end
     end
 
