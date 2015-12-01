@@ -715,7 +715,7 @@ function gcicap.vectorToTarget(flight, intruder, cold)
   if target == nil or intruder.group == nil then return end
   -- check if interceptor even still exists
   if flight.group:isExist() then
-    if target:isExist() then
+    if target:isExist() and target:inAir() then
       local target_pos = target:getPoint()
       local ctl = flight.group:getController()
 
