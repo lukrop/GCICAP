@@ -29,7 +29,7 @@ This is a fork of Stonehouse's version. It's almost a complete rewrite but it's 
 
 * GCI messages can be displayed only to given groups (not every helo pilot will want to know about intruders that often, probably).
 * If a CAP flight is closer to the intruder than the airfield an interceptor would start from, it gets tasked with the intercept. In return if a airfield is closer the GCI would start, even if there are CAP flights active.
-* GCI flights will only use their radar to attack since they are guided from the ground which should make them more deadly.
+* GCI flights will only use their radar to attack (not for searching) since they are guided from the ground which makes them stealthier and should make them more deadly.
 * You can choose the maximum distance a CAP flight would divert from it's route to engage any enemys. This is useful if used without borders but overlapping radar coverage. This distance doesn't affect any intercept missions a CAP flight might get tasked with.
 * Choose the amount of waypoints a CAP flight has in the CAP zone.
 * Some more options/variables.
