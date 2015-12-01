@@ -38,6 +38,7 @@ This is a fork of Stonehouse's version. It's almost a complete rewrite but it's 
 * It's possible to choose any type of unit for the group whose waypoints define a border line.
 * Optionally also use AWACS aircraft for target acquisition.
 * Currently it's missing the cleanup functionality around airfields on the ground, because I want to solve the problem slightly different.
+* yeah, and some major performance improvemnts as well as about 4000 lines less than the original :eyes: :dash: :D
 
 ## How to use
 To use this script in a mission you need to add a trigger which executes this script after the mission start (eg. *TIME MORE 2*). Make sure it is also executed **after** MIST. Have a look at the sample mission if you are not sure about the trigger.
