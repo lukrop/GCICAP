@@ -916,6 +916,7 @@ function gcicap.despawnHandler(event)
     event.id == world.event.S_EVENT_ENGINE_SHUTDOWN then
     local unit = event.initiator
     local group = unit:getGroup()
+    if not group:isExist() then return end
     local side = gcicap.coalitionToSide(unit:getCoalition())
     local flight = gcicap.getFlight(group:getName())
     -- check if we manage this group
