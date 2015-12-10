@@ -158,7 +158,8 @@ gcicap.blue.border_group = 'blueborder'
 
 -- i'd vouch for a better default but for the sake of backwards compatibility with
 -- current missions we go with the old default.
-gcicap.template_prefix = '__TMP__'
+gcicap.gci.template_prefix = '__GCI__'
+gcicap.cap.template_prefix = '__CAP__'
 gcicap.template_count = 4
 
 gcicap.sides = { "red", "blue" }
@@ -862,8 +863,8 @@ function gcicap.taskWithRTB(flight, airbase, cold)
   end
 end
 
-function gcicap.spawnFighterGroup(side, name, size, airbase, spawn_mode, cold)
-  local template_unit = Unit.getByName(gcicap.template_prefix..side..math.random(1, gcicap.template_count))
+function gcicap.spawnFighterGroup(side, name, size, airbase, spawn_mode, task, cold)
+  local template_unit = Unit.getByName(gcicap[task].template_prefix..side..math.random(1, gcicap.template_count))
   local template_group = mist.getGroupData(template_unit:getGroup():getName())
   local template_unit_data = template_group.units[1]
   local airbase_pos = airbase:getPoint()
@@ -960,7 +961,7 @@ function gcicap.spawnCAP(side, zone, spawn_mode)
     size = tonumber(size)
   end
   -- actually spawn something
-  local group = gcicap.spawnFighterGroup(side, group_name, size, airbase, spawn_mode)
+  local group = gcicap.spawnFighterGroup(side, group_name, size, airbase, spawn_mode, "cap")
   --local ctl = group:getController()
   --ctl:setOption(AI.Option.Air.id.RADAR_USING, AI.Option.Air.val.RADAR_USING.FOR_ATTACK_ONLY)
   gcicap[side].supply = gcicap[side].supply - 1
@@ -997,7 +998,7 @@ function gcicap.spawnGCI(side, intruder, airbase)
     size = tonumber(size)
   end
   -- actually spawn something
-  local group = gcicap.spawnFighterGroup(side, group_name, size, airbase, gcicap[side].gci.spawn_mode)
+  local group = gcicap.spawnFighterGroup(side, group_name, size, airbase, gcicap[side].gci.spawn_mode, "gci")
   local ctl = group:getController()
   -- make the GCI units only use their radar for attacking
   ctl:setOption(AI.Option.Air.id.RADAR_USING, AI.Option.Air.val.RADAR_USING.FOR_ATTACK_ONLY)
