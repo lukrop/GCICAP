@@ -10,7 +10,7 @@ The script provides an autonomous model of combat air patrols and ground control
 * [Overview](#overview)
   * [TOC](#toc)
 * [Requirements](#requirements)
-* [Fork changes](#fork-changes)
+* [Rewrite changes](#rewrite-changes)
 * [How to use](#how-to-use)
   * [CAP zones](#cap-zones)
   * [Template units](#template-units)
