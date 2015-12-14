@@ -537,6 +537,7 @@ function gcicap.buildCAPRoute(zone, wp_count)
     points[i].alt_type = "BARO"
     points[i].x = point.x
     points[i].y = point.y
+    points[i].speed = 180 -- roughly 650 km/h
 
     if i == wp_count then
       points[i].task = {
@@ -729,6 +730,7 @@ function gcicap.vectorToTarget(flight, intruder, cold)
                 alt = target_pos.y,
                 x = target_pos.x,
                 y = target_pos.z,
+                points[i].speed = 195 -- roughly 700 km/h
                 action = "Turning Point",
                 type = "Turning Point",
                 task = {
