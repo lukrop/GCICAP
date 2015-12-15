@@ -57,11 +57,11 @@ gcicap.cap.max_alt = 7500
 
 -- Speed for CAP flights on their CAP route
 -- speed is in m/s
-gcicap.cap.speed = 180
+gcicap.cap.speed = 220
 
 -- Speed for GCI flights on intercept
 -- speed is in m/s
-gcicap.gci.speed = 195
+gcicap.gci.speed = 300
 
 -- maximum engage distance for CAP flights as long as they are on patrol.
 -- this might be overruled by an intercept vector given from
@@ -164,11 +164,13 @@ gcicap.blue.cap.zone_name = 'blueCAPzone'
 gcicap.red.border_group = 'redborder'
 gcicap.blue.border_group = 'blueborder'
 
--- i'd vouch for a better default but for the sake of backwards compatibility with
--- current missions we go with the old default.
+-- template unit's names prefix.
 gcicap.gci.template_prefix = '__GCI__'
 gcicap.cap.template_prefix = '__CAP__'
-gcicap.template_count = 4
+-- count of template units. Remember that this means you need that many
+-- template units for each type. E.g. if the template_count is 2 you
+-- would need two GCI and two CAP template units for each side.
+gcicap.template_count = 2
 
 gcicap.sides = { "red", "blue" }
 gcicap.tasks = { "cap", "gci" }
