@@ -738,7 +738,7 @@ function gcicap.vectorToTarget(flight, intruder, cold)
                 alt = target_pos.y,
                 x = target_pos.x,
                 y = target_pos.z,
-                speed = gcicap.gci.speed
+                speed = gcicap.gci.speed,
                 action = "Turning Point",
                 type = "Turning Point",
                 task = {
