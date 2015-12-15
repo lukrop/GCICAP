@@ -901,7 +901,8 @@ function gcicap.spawnFighterGroup(side, name, size, airbase, spawn_mode, task, c
   group_data.units = unit_data
   group_data.groupName = name
   group_data.hidden = gcicap[side].hide_groups
-  group_data.country = template_group.country
+  --group_data.country = template_group.country
+  group_data.country = template_unit:getCountry()
   group_data.category = template_group.category
   group_data.task = "CAP"
 
