@@ -51,7 +51,7 @@ The size of the triggerzone will also define the size of the CAP zone. The route
 ### Template units
 By default the script needs *four* template units which define what aircraft are spawned by it. The template unit's type, livery, loadout and skill are used as template for each aircraft spawend by the script. Keep in mind that the aircraft needs to be able to conduct CAP/GCI missions. Choose CAP as the Task for the group. You can name the group anything you like but you need to give the unit (pilot) a name the script knows. You can go either by the default, left for backwards compatibility: `__GCI__side#` for GCI flights and `__CAP__side#` for CAP flights, eg. `__GCI__blue1` for the first blue GCI template unit. Or you choose to set `gcicap.gci.template_prefix` or `gcicap.cap.template_prefix` to a different string. The name will be postfixed with the side and number.
 
-You can also choose the amount of template units you want to have by changing `gcicap.template_count`.
+You can also choose the amount of template units you want to have by changing `gcicap.template_count`. Keep in mind that if you use the default of `gcicap.template_count = 2` you'll need two GCI and two CAP template units for each side (eight units in total).
 
 The script will choose one template unit as template at random for each group it spawns. Don't forget to set the template units/groups to *LATE ACTIVATION* so they don't show up in the mission.
 
