@@ -116,7 +116,7 @@ gcicap.blue.gci.messages_metric = false
 -- leave blank for all groups of coalition
 -- e.g. gcicap.red.gci.messages_to = { "my group 1", "GCI Flight" }
 gcicap.red.gci.messages_to = {}
-gcicap.red.gci.messages_to = {}
+gcicap.blue.gci.messages_to = {}
 
 -- can be "parking", "takeoff" or "air" and defines the way the fighters spawn
 -- takeoff is NOT RECOMMENDED currently since their occur timing issues with tasking
@@ -377,7 +377,7 @@ function gcicap.checkForAirspaceIntrusion(side)
 
             -- send message to all units of coalition or some specified groups
             -- that we have a intruder
-            if gcicap.gci.messages then
+            if gcicap[side].gci.messages then
               local par = {
                 units = { ac:getName() },
                 ref = gcicap[side].bullseye,
@@ -390,9 +390,9 @@ function gcicap.checkForAirspaceIntrusion(side)
 
               local msg_for = {}
               -- if groups are specified find their units names and add them to the list
-              if #gcicap[side].gci.message_for > 0 then
+              if #gcicap[side].gci.messages_to > 0 then
                 msg_for.units = {}
-                for g, group_name in pairs(gcicap[side].gci.message_for) do
+                for g, group_name in pairs(gcicap[side].gci.messages_to) do
                   group = Group.getByName(group_name)
                   if group ~= nil then
                     for u, unit in pairs(group:getUnits()) do
