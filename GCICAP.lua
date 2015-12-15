@@ -730,7 +730,7 @@ function gcicap.vectorToTarget(flight, intruder, cold)
                 alt = target_pos.y,
                 x = target_pos.x,
                 y = target_pos.z,
-                points[i].speed = 195 -- roughly 700 km/h
+                speed = 195 -- roughly 700 km/h
                 action = "Turning Point",
                 type = "Turning Point",
                 task = {
