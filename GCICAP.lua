@@ -320,6 +320,7 @@ function gcicap.checkForAirspaceIntrusion(side)
       if ac ~= nil then
         ac_pos = ac:getPoint()
         ac_group = ac:getGroup()
+        if not ac_group:isExist() then break
 
         -- now loop over all ewr units
         for n = 1, #active_ewr do
