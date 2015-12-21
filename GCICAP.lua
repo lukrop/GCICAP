@@ -318,106 +318,107 @@ function gcicap.checkForAirspaceIntrusion(side)
       local intruder_num = 0
       local ewr = nil
       if ac ~= nil then
-        ac_pos = ac:getPoint()
         ac_group = ac:getGroup()
-        if not ac_group:isExist() then break end
+        if ac_group:isExist() then
+          ac_pos = ac:getPoint()
 
-        -- now loop over all ewr units
-        for n = 1, #active_ewr do
-          local ewr_controller = active_ewr[n]:getGroup():getController()
-          -- and check if the EWR detected the aircraft
-          if ewr_controller:isTargetDetected(ac, RADAR) then
-            ewr = active_ewr[n]
-            ac_detected = true
-            -- stop once it was detected by one EWR
-            break
-          end
-        end
-
-        if ac_detected then
-          -- do we check borders?
-          if gcicap[side].borders_enabled then
-            ac_intruded = mist.pointInPolygon(ac_pos, border)
-          else
-            -- if not the aircarft is always intruding
-            ac_intruded = true
+          -- now loop over all ewr units
+          for n = 1, #active_ewr do
+            local ewr_controller = active_ewr[n]:getGroup():getController()
+            -- and check if the EWR detected the aircraft
+            if ewr_controller:isTargetDetected(ac, RADAR) then
+              ewr = active_ewr[n]
+              ac_detected = true
+              -- stop once it was detected by one EWR
+              break
+            end
           end
 
-          if ac_intruded then
-            local in_list = false
-            -- check if we already know about the intruder
-            for j = 1, #gcicap[side].intruders do
-              if gcicap[side].intruders[j].name == ac_group:getName() then
-                in_list = true
-                intruder_num = j
-                break
-              end
-            end
-            if not in_list then
-              intruder_count = intruder_count + 1
-              if gcicap.log then
-                env.info("[GCICAP] "..ac_group:getName().." ("..ac:getName()..
-                         ") intruded airspace of "..side.." detected by "..ewr:getGroup():getName()..
-                         " ("..ewr:getName()..").")
-              end
-
-              intruder = {
-                name = ac_group:getName(),
-                --unit = ac,
-                group = ac_group,
-                detected_by = ewr,
-                --groupID = ac_group:getID(),
-                --unitID = ac:getID(),
-                --unitType = ac:getTypeName(),
-                size = ac_group:getSize(),
-                intercepted = false,
-              }
-              table.insert(gcicap[side].intruders, intruder)
-              intruder_num = #gcicap[side].intruders
+          if ac_detected then
+            -- do we check borders?
+            if gcicap[side].borders_enabled then
+              ac_intruded = mist.pointInPolygon(ac_pos, border)
+            else
+              -- if not the aircarft is always intruding
+              ac_intruded = true
             end
 
-            -- send message to all units of coalition or some specified groups
-            -- that we have a intruder
-            if gcicap[side].gci.messages then
-              local par = {
-                units = { ac:getName() },
-                ref = gcicap[side].bullseye,
-                alt = ac_pos.y,
-              }
-              -- do we want to display in metric units?
-              if gcicap[side].gci.messages_metric then
-                par.metric = true
+            if ac_intruded then
+              local in_list = false
+              -- check if we already know about the intruder
+              for j = 1, #gcicap[side].intruders do
+                if gcicap[side].intruders[j].name == ac_group:getName() then
+                  in_list = true
+                  intruder_num = j
+                  break
+                end
+              end
+              if not in_list then
+                intruder_count = intruder_count + 1
+                if gcicap.log then
+                  env.info("[GCICAP] "..ac_group:getName().." ("..ac:getName()..
+                           ") intruded airspace of "..side.." detected by "..ewr:getGroup():getName()..
+                           " ("..ewr:getName()..").")
+                end
+
+                intruder = {
+                  name = ac_group:getName(),
+                  --unit = ac,
+                  group = ac_group,
+                  detected_by = ewr,
+                  --groupID = ac_group:getID(),
+                  --unitID = ac:getID(),
+                  --unitType = ac:getTypeName(),
+                  size = ac_group:getSize(),
+                  intercepted = false,
+                }
+                table.insert(gcicap[side].intruders, intruder)
+                intruder_num = #gcicap[side].intruders
               end
 
-              local msg_for = {}
-              -- if groups are specified find their units names and add them to the list
-              if #gcicap[side].gci.messages_to > 0 then
-                msg_for.units = {}
-                for g, group_name in pairs(gcicap[side].gci.messages_to) do
-                  group = Group.getByName(group_name)
-                  if group ~= nil then
-                    for u, unit in pairs(group:getUnits()) do
-                      table.insert(msg_for.units, unit:getName())
+              -- send message to all units of coalition or some specified groups
+              -- that we have a intruder
+              if gcicap[side].gci.messages then
+                local par = {
+                  units = { ac:getName() },
+                  ref = gcicap[side].bullseye,
+                  alt = ac_pos.y,
+                }
+                -- do we want to display in metric units?
+                if gcicap[side].gci.messages_metric then
+                  par.metric = true
+                end
+
+                local msg_for = {}
+                -- if groups are specified find their units names and add them to the list
+                if #gcicap[side].gci.messages_to > 0 then
+                  msg_for.units = {}
+                  for g, group_name in pairs(gcicap[side].gci.messages_to) do
+                    group = Group.getByName(group_name)
+                    if group ~= nil then
+                      for u, unit in pairs(group:getUnits()) do
+                        table.insert(msg_for.units, unit:getName())
+                      end
                     end
                   end
+                else
+                  msg_for.coa = { side }
                 end
-              else
-                msg_for.coa = { side }
+                -- get the bearing, range and altitude from bullseye to intruder
+                local bra = mist.getBRString(par)
+                local bra_string = "Airpsace intrusion! BRA from bullseye "..bra
+                local msg = {
+                  text = bra_string,
+                  displayTime = gcicap.gci.message_time,
+                  msgFor = msg_for,
+                  name = "gcicap.gci.msg"..intruder_num,
+                }
+                -- finally send the message
+                mist.message.add(msg)
               end
-              -- get the bearing, range and altitude from bullseye to intruder
-              local bra = mist.getBRString(par)
-              local bra_string = "Airpsace intrusion! BRA from bullseye "..bra
-              local msg = {
-                text = bra_string,
-                displayTime = gcicap.gci.message_time,
-                msgFor = msg_for,
-                name = "gcicap.gci.msg"..intruder_num,
-              }
-              -- finally send the message
-              mist.message.add(msg)
-            end
-          end -- if ac_intruded
-        end -- if ac_detected
+            end -- if ac_intruded
+          end -- if ac_detected
+        end -- if ac_group is existing
       end -- if ac ~= nil
     end -- for #active_ac
   end -- if active_ac > 0 and active_ewr > 0
@@ -1054,48 +1055,55 @@ end
 function gcicap.handleIntrusion(side)
   for i = 1, #gcicap[side].intruders do
     local intruder = gcicap[side].intruders[i]
-    -- check if we need to do something about him
-    if not intruder.intercepted and intruder.group then
-      -- check if we have something to work with
-      if #gcicap[side].cap.flights > 0 or
-        #gcicap[side].gci.flights < gcicap[side].gci.groups_count then
-        -- get closest unit
-        local closest_cap = nil
-        local intruder_unit = gcicap.getFirstActiveUnit(intruder.group)
-        local closest_flights = gcicap.getClosestFlightsToUnit(side, intruder_unit)
-        local cap_avail = false
-        for j = 1, #closest_flights do
-          closest_cap = closest_flights[j]
-          cap_avail = (not closest_cap.flight.rtb) and (not closest_cap.flight.intercepting)
-          if cap_avail then
-            if gcicap.log then
-              env.info("[GCICAP] Found close CAP flight which is available for tasking")
-              env.info("name: "..closest_cap.flight.group:getName())
+    if intruder.group then
+      if intruder.group:isExist() then
+        -- check if we need to do something about him
+        if not intruder.intercepted then
+          -- check if we have something to work with
+          if #gcicap[side].cap.flights > 0 or
+            #gcicap[side].gci.flights < gcicap[side].gci.groups_count then
+            -- get closest unit
+            local closest_cap = nil
+            local intruder_unit = gcicap.getFirstActiveUnit(intruder.group)
+            local closest_flights = gcicap.getClosestFlightsToUnit(side, intruder_unit)
+            local cap_avail = false
+            for j = 1, #closest_flights do
+              closest_cap = closest_flights[j]
+              cap_avail = (not closest_cap.flight.rtb) and (not closest_cap.flight.intercepting)
+              if cap_avail then
+                if gcicap.log then
+                  env.info("[GCICAP] Found close CAP flight which is available for tasking")
+                  env.info("name: "..closest_cap.flight.group:getName())
+                end
+                break
+              end
             end
-            break
-          end
-        end
-        if cap_avail then
-          -- check if we have a airfield which is closer to the unit than the CAP group
-          local closest_af = gcicap.getClosestAirfieldToUnit(side, intruder_unit)
-          if closest_af then
-            if closest_cap.distance < closest_af.distance then
-              -- task CAP flight with intercept
-              gcicap.vectorToTarget(closest_cap.flight, intruder)
-              return
+            if cap_avail then
+              -- check if we have a airfield which is closer to the unit than the CAP group
+              local closest_af = gcicap.getClosestAirfieldToUnit(side, intruder_unit)
+              if closest_af then
+                if closest_cap.distance < closest_af.distance then
+                  -- task CAP flight with intercept
+                  gcicap.vectorToTarget(closest_cap.flight, intruder)
+                  return
+                end
+              end
             end
-          end
-        end
-        if (not gcicap[side].limit_resources
-            or (gcicap[side].limit_resources and gcicap[side].supply > 0))
-          and gcicap[side].gci.enabled then
-          -- spawn CGI
-          gcicap.spawnGCI(side, intruder)
-          if gcicap.log then
-            env.info("[GCICAP] Airfield closer to intruder than CAP flight. Starting GCI.")
+            if (not gcicap[side].limit_resources
+                or (gcicap[side].limit_resources and gcicap[side].supply > 0))
+              and gcicap[side].gci.enabled then
+              -- spawn CGI
+              gcicap.spawnGCI(side, intruder)
+              if gcicap.log then
+                env.info("[GCICAP] Airfield closer to intruder than CAP flight. Starting GCI.")
+              end
+            end
           end
         end
       end
+    else
+      -- the intruder group doesn't exist (anymore) remove it
+      table.remove(gcicap[side].intruders, i)
     end
   end
 end
