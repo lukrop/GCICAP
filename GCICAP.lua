@@ -881,8 +881,7 @@ function gcicap.spawnFighterGroup(side, name, size, airbase, spawn_mode, task, c
   local template_unit_name = gcicap[task].template_prefix..side..math.random(1, gcicap.template_count)
   local template_unit = Unit.getByName(template_unit_name)
   if not template_unit then
-    -- make it use a messageBox as this is a deal breaker
-    env.error("[GCICAP] Can't find template unit with name "..template_unit_name..". Please check template unit's names.", true)
+    env.error("[GCICAP] Can't find template unit with name "..template_unit_name..". Please check template unit's names.")
     return nil
   end
   local template_group = mist.getGroupData(template_unit:getGroup():getName())
