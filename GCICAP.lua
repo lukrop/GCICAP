@@ -934,6 +934,7 @@ end
 
 function gcicap.despawnHandler(event)
   if event.id == world.event.S_EVENT_PILOT_DEAD or
+    event.id == world.event.S_EVENT_CRASH or
     event.id == world.event.S_EVENT_ENGINE_SHUTDOWN then
     local unit = event.initiator
     local group = unit:getGroup()
@@ -942,9 +943,10 @@ function gcicap.despawnHandler(event)
     local flight = gcicap.getFlight(group:getName())
     -- check if we manage this group
     if flight then
-      if event.id == world.event.S_EVENT_PILOT_DEAD then
+      if event.id == world.event.S_EVENT_PILOT_DEAD or
+        event.id == world.event.S_EVENT_CRASH then
         -- it was the last unit of the flight so remove the flight
-        if group:getSize() == 1 then
+        if group:getSize() <= 1 then
           gcicap.removeFlight(group:getName())
         end
       else
