@@ -1082,15 +1082,17 @@ function gcicap.handleIntrusion(side)
             local intruder_unit = gcicap.getFirstActiveUnit(intruder.group)
             local closest_flights = gcicap.getClosestFlightsToUnit(side, intruder_unit)
             local cap_avail = false
-            for j = 1, #closest_flights do
-              closest_cap = closest_flights[j]
-              cap_avail = (not closest_cap.flight.rtb) and (not closest_cap.flight.intercepting)
-              if cap_avail then
-                if gcicap.log then
-                  env.info("[GCICAP] Found close CAP flight which is available for tasking")
-                  env.info("name: "..closest_cap.flight.group:getName())
+            if closest_flights then
+              for j = 1, #closest_flights do
+                closest_cap = closest_flights[j]
+                cap_avail = (not closest_cap.flight.rtb) and (not closest_cap.flight.intercepting)
+                if cap_avail then
+                  if gcicap.log then
+                    env.info("[GCICAP] Found close CAP flight which is available for tasking")
+                    env.info("name: "..closest_cap.flight.group:getName())
+                  end
+                  break
                 end
-                break
               end
             end
             if cap_avail then
