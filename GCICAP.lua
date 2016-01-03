@@ -608,6 +608,8 @@ end
 
 function gcicap.registerFlight(side, task, airbase, group, param)
   local flight = {}
+  flight.side = side
+  flight.task = task
   flight.group_name = group:getName()
   flight.group = group
   if task == "cap" then
@@ -841,6 +843,12 @@ function gcicap.taskWithRTB(flight, airbase, cold)
 
   if flight.zone then
     gcicap.leaveCAPZone(flight)
+    local side = flight.side
+    -- let's try to spawn a new CAP flight as soon as the current one is tasked with RTB.
+    if not gcicap[side].limit_resources or
+          (gcicap[side].limit_resources and gcicap[side].supply > 0) then
+      gcicap.spawnCAP(side, flight.zone, gcicap[side].cap.spawn_mode)
+    end
   end
   flight.rtb = true
   local group = flight.group
