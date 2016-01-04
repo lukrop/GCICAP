@@ -262,11 +262,11 @@ function gcicap.getAllActiveEWR(side)
           or vec_type == "Patriot str" then
           table.insert(active_ewr, vec)
         end
-        if (vec_type == "A-50" and gcicap[side].awacas)
-          or (vec_type == "E-2D" and gcicap[side].awacs)
-          or (vec_type == "E-3A" and gcicap[side].awacs) then
-          table.insert(active_ewr, vec)
-        end
+        -- if (vec_type == "A-50" and gcicap[side].awacas)
+        --   or (vec_type == "E-2D" and gcicap[side].awacs)
+        --   or (vec_type == "E-3A" and gcicap[side].awacs) then
+        --   table.insert(active_ewr, vec)
+        -- end
       end
     end
   end
