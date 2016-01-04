@@ -889,7 +889,7 @@ function gcicap.spawnFighterGroup(side, name, size, airbase, spawn_mode, task, c
   local template_unit_name = gcicap[task].template_prefix..side..math.random(1, gcicap.template_count)
   local template_unit = Unit.getByName(template_unit_name)
   if not template_unit then
-    env.error("[GCICAP] Can't find template unit with name "..template_unit_name..". Please check template unit's names.")
+    env.error("[GCICAP] Can't find template unit with name "..template_unit_name..". This should never happen. Somehow the template unit got deleted.")
     return nil
   end
   local template_group = mist.getGroupData(template_unit:getGroup():getName())
@@ -1125,8 +1125,28 @@ function gcicap.handleIntrusion(side)
   end
 end
 
+function gcicap.checkForTemplateUnits(side)
+  if gcicap[side].gci.enabled then
+    for i = 1, gcicap.template_count do
+      local unit = gcicap.gci.template_unit..i
+      if not Unit.getByName(unit) then
+        env.error("[GCICAP] GCI template unit missing: "..unit, true)
+      end
+    end
+  end
+  if gcicap[side].cap.enabled then
+    for i = 1, gcicap.template_count do
+      local unit = gcicap.cap.template_unit..i
+      if not Unit.getByName(unit) then
+        env.error("[GCICAP] CAP template unit missing: "..unit, true)
+      end
+    end
+  end
+end
+
 function gcicap.init()
   for i, side in ipairs(gcicap.sides) do
+    gcicap.checkForTemplateUnits(side)
     if gcicap[side].borders_enabled then
       gcicap[side].border = mist.getGroupPoints(gcicap[side].border_group)
     end
