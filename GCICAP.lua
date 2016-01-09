@@ -443,10 +443,14 @@ do
                         params = {
                           command = "local group = ...\
                           local flight = gcicap.Flight.getFlight(group)\
-                          if flight.zone then\
-                            flight:taskWithCAP()\
+                          if flight then\
+                            if flight.zone then\
+                              flight:taskWithCAP()\
+                            else\
+                              flight:taskWithRTB()\
+                            end\
                           else\
-                            flight:taskWithRTB()\
+                            gcicap.log:error('Could not find flight for $1', group:getName())\
                           end"
                         }
                       }
@@ -1095,7 +1099,11 @@ do
               params = {
                 command = "local group = ...\
                 local flight = gcicap.Flight.getFlight(group)\
-                flight:taskWithRTB()"
+                if flight then\
+                  flight:taskWithRTB()\
+                else\
+                  gcicap.log:error('Could not find flight for $1', group:getName())\
+                end"
               }
             }
           }
