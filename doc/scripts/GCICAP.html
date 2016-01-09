@@ -1,0 +1,1949 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<head>
+    <title>Reference</title>
+    <link rel="stylesheet" href="../ldoc.css" type="text/css" />
+</head>
+<body>
+
+<div id="container">
+
+<div id="product">
+	<div id="product_logo"></div>
+	<div id="product_name"><big><b></b></big></div>
+	<div id="product_description"></div>
+</div> <!-- id="product" -->
+
+
+<div id="main">
+
+
+<!-- Menu -->
+
+<div id="navigation">
+<br/>
+<h1>ldoc</h1>
+
+
+<h2>Contents</h2>
+<ul>
+<li><a href="#Tables">Tables</a></li>
+<li><a href="#Fields">Fields</a></li>
+<li><a href="#Class_gcicap_Flight">Class gcicap.Flight </a></li>
+<li><a href="#Functions">Functions </a></li>
+</ul>
+
+
+<h2>Scripts</h2>
+<ul class="$(kind=='Topics' and '' or 'nowrap'">
+  <li><strong>GCICAP</strong></li>
+</ul>
+
+</div>
+
+<div id="content">
+
+<h1>Script <code>GCICAP</code></h1>
+<p>
+<h2>Overview</h2>
+<p>Autonomous GCI and CAP script for DCS: World.</p>
+</p>
+<p>The script provides an autonomous model of combat air patrols and ground controlled
+interceptors for use with DCS World by mission builders.</p>
+
+<p>After minimal setup the script will automatically spawn CAP and GCI flights for two
+sides and give them patrol and intercept tasks as well as returning them to base when
+threats cease to be detected.</p>
+
+<p>Originally created by Snafu, enhanced and further modified by Stonehouse,
+Rivvern, Chameleon Silk.</p>
+
+<p>Rewritten by lukrop.</p>
+
+<h2>Links</h2>
+
+<p>Github repository: <a href="https://github.com/lukrop/GCICAP">https://github.com/lukrop/GCICAP</a></p>
+    <h3>Info:</h3>
+    <ul>
+        <li><strong>Copyright</strong>: 2016 Snafu, Stonehouse, Rivvern, Chameleon Silk, lukrop.</li>
+        <li><strong>License</strong>: Modified MIT. See LICENSE file.</li>
+        <li><strong>Author</strong>: Snafu,Stonehouse,Rivvern,Chameleon Silk,lukrop</li>
+    </ul>
+
+
+<h2><a href="#Tables">Tables</a></h2>
+<table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.gci.messages_to">gcicap.red.gci.messages_to</a></td>
+	<td class="summary">Names of red groups which will receive GCI messages.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.gci.messages_to">gcicap.blue.gci.messages_to</a></td>
+	<td class="summary">Names of blue groups which will receive GCI messages.</td>
+	</tr>
+</table>
+<h2><a href="#Fields">Fields</a></h2>
+<table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.log">gcicap.log</a></td>
+	<td class="summary">Enable/disable log messages completly</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.log_level">gcicap.log_level</a></td>
+	<td class="summary">Sets how verbose the log output will be.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.interval">gcicap.interval</a></td>
+	<td class="summary">Interval, in seconds, of main and vectorToTarget functions.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.borders_enabled">gcicap.red.borders_enabled</a></td>
+	<td class="summary">Enable/disable borders for the red side.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.borders_enabled">gcicap.blue.borders_enabled</a></td>
+	<td class="summary">Enable/disable borders for the blue side.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.cap.min_alt">gcicap.cap.min_alt</a></td>
+	<td class="summary">CAP minimum altitudes in meters.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.cap.max_alt">gcicap.cap.max_alt</a></td>
+	<td class="summary">CAP maximum altitudes in meters.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.cap.speed">gcicap.cap.speed</a></td>
+	<td class="summary">Speed for CAP flights on their CAP route.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.gci.speed">gcicap.gci.speed</a></td>
+	<td class="summary">Speed for GCI flights on intercept
+ speed is in m/s.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.cap.max_engage_distance">gcicap.cap.max_engage_distance</a></td>
+	<td class="summary">Maximum engage distance for CAP flights as long as they are on patrol.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.cap.waypoints_count">gcicap.cap.waypoints_count</a></td>
+	<td class="summary">Amount of waypoints inside the CAP zone.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.cap.start_airborne">gcicap.red.cap.start_airborne</a></td>
+	<td class="summary">Enable/disable red CAP flights airborne start.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.cap.start_airborne">gcicap.blue.cap.start_airborne</a></td>
+	<td class="summary">Enable/disable blue CAP flights airborne start.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.cap.zones_count">gcicap.red.cap.zones_count</a></td>
+	<td class="summary">Amount of red CAP zones.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.cap.zones_count">gcicap.blue.cap.zones_count</a></td>
+	<td class="summary">Amount of blue CAP zones.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.cap.groups_count">gcicap.red.cap.groups_count</a></td>
+	<td class="summary">Amount of red CAP groups concurrently in the air.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.cap.groups_count">gcicap.blue.cap.groups_count</a></td>
+	<td class="summary">Amount of blue CAP groups concurrently in the air.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.cap.group_size">gcicap.red.cap.group_size</a></td>
+	<td class="summary">Group size of red CAP flights.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.cap.group_size">gcicap.blue.cap.group_size</a></td>
+	<td class="summary">Group size of blue CAP flights.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.gci.groups_count">gcicap.red.gci.groups_count</a></td>
+	<td class="summary">Maximum amount of concurrent red intercepts.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.gci.groups_count">gcicap.blue.gci.groups_count</a></td>
+	<td class="summary">Maximum amount of concurrent blue intercepts.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.gci.group_size">gcicap.red.gci.group_size</a></td>
+	<td class="summary">Group size of red GCI flights.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.gci.group_size">gcicap.blue.gci.group_size</a></td>
+	<td class="summary">Group size of blue GCI flights.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.gci.messages">gcicap.red.gci.messages</a></td>
+	<td class="summary">Enable/disable GCI messages for red</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.gci.messages">gcicap.blue.gci.messages</a></td>
+	<td class="summary">Enable/disable GCI messages for blue</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.gci.message_time">gcicap.gci.message_time</a></td>
+	<td class="summary">How long a GCI message will be shown in seconds.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.gci.messages_metric">gcicap.red.gci.messages_metric</a></td>
+	<td class="summary">Display GCI messages with metric measurment for red.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.gci.messages_metric">gcicap.blue.gci.messages_metric</a></td>
+	<td class="summary">Display GCI messages with metric measurment for blue.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.cap.spawn_mode">gcicap.red.cap.spawn_mode</a></td>
+	<td class="summary">How red CAP flights are spawned.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.gci.spawn_mode">gcicap.red.gci.spawn_mode</a></td>
+	<td class="summary">How red GCI flights are spawned.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.cap.spawn_mode">gcicap.blue.cap.spawn_mode</a></td>
+	<td class="summary">How blue CAP flights are spawned.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.gci.spawn_mode">gcicap.blue.gci.spawn_mode</a></td>
+	<td class="summary">How blue GCI flights are spawned.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.hide_groups">gcicap.blue.hide_groups</a></td>
+	<td class="summary">Hide or reveal blue air units in the mission.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.hide_groups">gcicap.red.hide_groups</a></td>
+	<td class="summary">Hide or reveal red air units in the mission.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.cap.enabled">gcicap.red.cap.enabled</a></td>
+	<td class="summary">Enable/disable red CAP flights.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.cap.enabled">gcicap.blue.cap.enabled</a></td>
+	<td class="summary">Enable/disable blue CAP flights.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.gci.enabled">gcicap.red.gci.enabled</a></td>
+	<td class="summary">Enable/disable red GCI flights.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.gci.enabled">gcicap.blue.gci.enabled</a></td>
+	<td class="summary">Enable/disable blue GCI flights.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.limit_resources">gcicap.red.limit_resources</a></td>
+	<td class="summary">Enabel/disable resource limitation for red.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.limit_resources">gcicap.blue.limit_resources</a></td>
+	<td class="summary">Enabel/disable resource limitation for blue.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.supply">gcicap.red.supply</a></td>
+	<td class="summary">Amount of groups(!) red has at it's disposal.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.supply">gcicap.blue.supply</a></td>
+	<td class="summary">Amount of groups(!) red has at it's disposal.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.cap.zone_name">gcicap.red.cap.zone_name</a></td>
+	<td class="summary">Name of the trigger zone which defines red CAP zones.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.cap.zone_name">gcicap.blue.cap.zone_name</a></td>
+	<td class="summary">Name of the trigger zone which defines blue CAP zones.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.border_group">gcicap.red.border_group</a></td>
+	<td class="summary">Name of group which waypoints define the red border.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.border_group">gcicap.blue.border_group</a></td>
+	<td class="summary">Name of group which waypoints define the blue border.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.gci.template_prefix">gcicap.gci.template_prefix</a></td>
+	<td class="summary">GCI template unit's names prefix.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.cap.template_prefix">gcicap.cap.template_prefix</a></td>
+	<td class="summary">CAP template unit's names prefix.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.template_count">gcicap.template_count</a></td>
+	<td class="summary">Count of template units.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.red.awacs">gcicap.red.awacs</a></td>
+	<td class="summary">Wether red will also acquire targets by AWACS aircraft.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.blue.awacs">gcicap.blue.awacs</a></td>
+	<td class="summary">Wether blue will also acquire targets by AWACS aircraft.</td>
+	</tr>
+</table>
+<h2><a href="#Class_gcicap_Flight">Class gcicap.Flight </a></h2>
+<table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.Flight.getFlight">gcicap.Flight.getFlight (group)</a></td>
+	<td class="summary">Returns the flight for the given group.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.Flight:new">gcicap.Flight:new (group, airbase, task, param)</a></td>
+	<td class="summary">Creates a new flight.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.Flight:remove">gcicap.Flight:remove (self)</a></td>
+	<td class="summary">Removes the flight</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.Flight:leaveCAPZone">gcicap.Flight:leaveCAPZone ()</a></td>
+	<td class="summary">Decreases active flights counter in this flights zone.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.Flight:enterCAPZone">gcicap.Flight:enterCAPZone ()</a></td>
+	<td class="summary">Increases active flights counter in this flights zone.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.Flight:vectorToTarget">gcicap.Flight:vectorToTarget (intruder[, cold])</a></td>
+	<td class="summary">Tasks the flight to search and engage the target.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.Flight:taskWithCAP">gcicap.Flight:taskWithCAP ([cold])</a></td>
+	<td class="summary">Tasks flight with combat air patrol.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.Flight:taskWithRTB">gcicap.Flight:taskWithRTB ([airbase[, cold]])</a></td>
+	<td class="summary">Tasks the flight to return to it's homeplate.</td>
+	</tr>
+</table>
+<h2><a href="#Functions">Functions </a></h2>
+<table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.coalitionToSide">gcicap.coalitionToSide (coal)</a></td>
+	<td class="summary">Converts coaltion number to side string.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.sideToCoalition">gcicap.sideToCoalition (side)</a></td>
+	<td class="summary">Converts side string to coaltion number.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.getFirstActiveUnit">gcicap.getFirstActiveUnit (group)</a></td>
+	<td class="summary">Returns first active unit of a group.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.getClosestAirfieldToUnit">gcicap.getClosestAirfieldToUnit (side, unit)</a></td>
+	<td class="summary">Returns the closest airfield to unit.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#closestAirfieldReturn">closestAirfieldReturn</a></td>
+	<td class="summary">Table returned by getClosestAirfieldToUnit.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.getClosestFlightsToUnit">gcicap.getClosestFlightsToUnit (side, unit)</a></td>
+	<td class="summary">Returns the closest flights to the given unit.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#closestFlightsReturn">closestFlightsReturn</a></td>
+	<td class="summary">Table returned by getClosestFlightsToUnit.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.buildCAPRoute">gcicap.buildCAPRoute (zone[, wp_count])</a></td>
+	<td class="summary">Returns a table containting a CAP route.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.taskEngage">gcicap.taskEngage (group[, max_dist])</a></td>
+	<td class="summary">Tasks group to automatically engage any spotted targets.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.taskEngageInZone">gcicap.taskEngageInZone (group, center, radius)</a></td>
+	<td class="summary">Tasks group to engage targets inside a zone.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.taskEngageGroup">gcicap.taskEngageGroup (group, target)</a></td>
+	<td class="summary">Tasks group to engage a group.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.spawnFighterGroup">gcicap.spawnFighterGroup (side, name, size, airbase, spawn_mode, task[, cold])</a></td>
+	<td class="summary">Spawns a fighter group.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.despawnHandler">gcicap.despawnHandler (event)</a></td>
+	<td class="summary">Handle despawns/removal of flights created by GCICAP.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.spawnCAP">gcicap.spawnCAP (side, zone, spawn_mode)</a></td>
+	<td class="summary">Spawns a CAP flight.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.spawnGCI">gcicap.spawnGCI (side, intruder, airbase)</a></td>
+	<td class="summary">Spawns a GCI flight.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.init">gcicap.init ()</a></td>
+	<td class="summary">Initialization function
+ Checks if all template units are present.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#gcicap.main">gcicap.main ()</a></td>
+	<td class="summary">Main function.</td>
+	</tr>
+</table>
+
+<br/>
+<br/>
+
+
+    <h2><a name="Tables"></a>Tables</h2>
+
+    <dl class="function">
+    <dt>
+    <a name = "gcicap.red.gci.messages_to"></a>
+    <strong>gcicap.red.gci.messages_to</strong>
+    </dt>
+    <dd>
+    Names of red groups which will receive GCI messages.
+ Leave blank for all groups of coalition
+
+
+
+
+
+
+    <h3>Usage:</h3>
+    <ul>
+        <pre class="example">gcicap.red.gci.messages_to = { <span class="string">"my group 1"</span>, <span class="string">"GCI Flight"</span> }</pre>
+    </ul>
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.gci.messages_to"></a>
+    <strong>gcicap.blue.gci.messages_to</strong>
+    </dt>
+    <dd>
+    Names of blue groups which will receive GCI messages.
+ See <a href="../index.html#gcicap.red.gci.messages_to">gcicap.red.gci.messages_to</a> for format.
+
+
+
+
+
+
+
+</dd>
+</dl>
+    <h2><a name="Fields"></a>Fields</h2>
+
+    <dl class="function">
+    <dt>
+    <a name = "gcicap.log"></a>
+    <strong>gcicap.log</strong>
+    </dt>
+    <dd>
+    Enable/disable log messages completly
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.log_level"></a>
+    <strong>gcicap.log_level</strong>
+    </dt>
+    <dd>
+    Sets how verbose the log output will be.
+ Possible values are "info", "warning" and "error".
+ I recommend "error" for production.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.interval"></a>
+    <strong>gcicap.interval</strong>
+    </dt>
+    <dd>
+    Interval, in seconds, of main and vectorToTarget functions.
+ Default 30 seconds.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.borders_enabled"></a>
+    <strong>gcicap.red.borders_enabled</strong>
+    </dt>
+    <dd>
+    Enable/disable borders for the red side.
+ CAP units only engage if enemy units intrude their airspace
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.borders_enabled"></a>
+    <strong>gcicap.blue.borders_enabled</strong>
+    </dt>
+    <dd>
+    Enable/disable borders for the blue side.
+ CAP units only engage if enemy units intrude their airspace
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.cap.min_alt"></a>
+    <strong>gcicap.cap.min_alt</strong>
+    </dt>
+    <dd>
+    CAP minimum altitudes in meters.
+ Default 4500
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.cap.max_alt"></a>
+    <strong>gcicap.cap.max_alt</strong>
+    </dt>
+    <dd>
+    CAP maximum altitudes in meters.
+ Default 7500
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.cap.speed"></a>
+    <strong>gcicap.cap.speed</strong>
+    </dt>
+    <dd>
+    Speed for CAP flights on their CAP route.
+ speed is in m/s. Default 220.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.gci.speed"></a>
+    <strong>gcicap.gci.speed</strong>
+    </dt>
+    <dd>
+    Speed for GCI flights on intercept
+ speed is in m/s.  Default 300.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.cap.max_engage_distance"></a>
+    <strong>gcicap.cap.max_engage_distance</strong>
+    </dt>
+    <dd>
+    Maximum engage distance for CAP flights as long as they are on patrol.
+ this might be overruled by an intercept vector given from
+ ground control (EWR). Default 15000.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.cap.waypoints_count"></a>
+    <strong>gcicap.cap.waypoints_count</strong>
+    </dt>
+    <dd>
+    Amount of waypoints inside the CAP zone.
+ Default 10.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.cap.start_airborne"></a>
+    <strong>gcicap.red.cap.start_airborne</strong>
+    </dt>
+    <dd>
+    Enable/disable red CAP flights airborne start.
+ set to true for CAP flight to start airborne at script initialisation
+ (mission start), false for taking off from the airfield.
+ Default true.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.cap.start_airborne"></a>
+    <strong>gcicap.blue.cap.start_airborne</strong>
+    </dt>
+    <dd>
+    Enable/disable blue CAP flights airborne start.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.cap.zones_count"></a>
+    <strong>gcicap.red.cap.zones_count</strong>
+    </dt>
+    <dd>
+    Amount of red CAP zones.
+ placed with triggerzones in the ME.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.cap.zones_count"></a>
+    <strong>gcicap.blue.cap.zones_count</strong>
+    </dt>
+    <dd>
+    Amount of blue CAP zones.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.cap.groups_count"></a>
+    <strong>gcicap.red.cap.groups_count</strong>
+    </dt>
+    <dd>
+    Amount of red CAP groups concurrently in the air.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.cap.groups_count"></a>
+    <strong>gcicap.blue.cap.groups_count</strong>
+    </dt>
+    <dd>
+    Amount of blue CAP groups concurrently in the air.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.cap.group_size"></a>
+    <strong>gcicap.red.cap.group_size</strong>
+    </dt>
+    <dd>
+    Group size of red CAP flights.
+ Can be "2", "4" or "randomized"</p>
+
+<p> If "2" it consists of 2 planes, if "4" it consists of 4 planes
+ if "randomized", the CAP groups consist of either 2 or 4 planes
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.cap.group_size"></a>
+    <strong>gcicap.blue.cap.group_size</strong>
+    </dt>
+    <dd>
+    Group size of blue CAP flights.
+ See <a href="../index.html#gcicap.red.cap.group_size">gcicap.red.cap.group_size</a>
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.gci.groups_count"></a>
+    <strong>gcicap.red.gci.groups_count</strong>
+    </dt>
+    <dd>
+    Maximum amount of concurrent red intercepts.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.gci.groups_count"></a>
+    <strong>gcicap.blue.gci.groups_count</strong>
+    </dt>
+    <dd>
+    Maximum amount of concurrent blue intercepts.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.gci.group_size"></a>
+    <strong>gcicap.red.gci.group_size</strong>
+    </dt>
+    <dd>
+    Group size of red GCI flights.
+ Can be "2", "4" or "dynamic"</p>
+
+<p> If "2" it consists of 2 planes, if "4" it consists of 4 planes
+ if "dynamic", the GCI groups consist of as much aircrafts
+ as the intruder group.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.gci.group_size"></a>
+    <strong>gcicap.blue.gci.group_size</strong>
+    </dt>
+    <dd>
+    Group size of blue GCI flights.
+ See <a href="../index.html#gcicap.red.gci.group_size">gcicap.red.gci.group_size</a>
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.gci.messages"></a>
+    <strong>gcicap.red.gci.messages</strong>
+    </dt>
+    <dd>
+    Enable/disable GCI messages for red
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.gci.messages"></a>
+    <strong>gcicap.blue.gci.messages</strong>
+    </dt>
+    <dd>
+    Enable/disable GCI messages for blue
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.gci.message_time"></a>
+    <strong>gcicap.gci.message_time</strong>
+    </dt>
+    <dd>
+    How long a GCI message will be shown in seconds.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.gci.messages_metric"></a>
+    <strong>gcicap.red.gci.messages_metric</strong>
+    </dt>
+    <dd>
+    Display GCI messages with metric measurment for red.
+ If false the imperial system is used.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.gci.messages_metric"></a>
+    <strong>gcicap.blue.gci.messages_metric</strong>
+    </dt>
+    <dd>
+    Display GCI messages with metric measurment for blue.
+ If false the imperial system is used.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.cap.spawn_mode"></a>
+    <strong>gcicap.red.cap.spawn_mode</strong>
+    </dt>
+    <dd>
+    How red CAP flights are spawned.
+ can be "parking", "takeoff" or "air" and defines the way the fighters spawn
+ takeoff is NOT RECOMMENDED currently since their occur timing issues with tasking
+ if a flight is queued for takeoff and not already in the game world while getting tasked</p>
+
+<p> Default 'parking'
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.gci.spawn_mode"></a>
+    <strong>gcicap.red.gci.spawn_mode</strong>
+    </dt>
+    <dd>
+    How red GCI flights are spawned.
+
+
+
+
+
+    <h3>See also:</h3>
+    <ul>
+         <a href="../index.html#gcicap.red.cap.spawn_mode">gcicap.red.cap.spawn_mode</a>
+    </ul>
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.cap.spawn_mode"></a>
+    <strong>gcicap.blue.cap.spawn_mode</strong>
+    </dt>
+    <dd>
+    How blue CAP flights are spawned.
+
+
+
+
+
+    <h3>See also:</h3>
+    <ul>
+         <a href="../index.html#gcicap.red.cap.spawn_mode">gcicap.red.cap.spawn_mode</a>
+    </ul>
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.gci.spawn_mode"></a>
+    <strong>gcicap.blue.gci.spawn_mode</strong>
+    </dt>
+    <dd>
+    How blue GCI flights are spawned.
+
+
+
+
+
+    <h3>See also:</h3>
+    <ul>
+         <a href="../index.html#gcicap.red.cap.spawn_mode">gcicap.red.cap.spawn_mode</a>
+    </ul>
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.hide_groups"></a>
+    <strong>gcicap.blue.hide_groups</strong>
+    </dt>
+    <dd>
+    Hide or reveal blue air units in the mission.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.hide_groups"></a>
+    <strong>gcicap.red.hide_groups</strong>
+    </dt>
+    <dd>
+    Hide or reveal red air units in the mission.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.cap.enabled"></a>
+    <strong>gcicap.red.cap.enabled</strong>
+    </dt>
+    <dd>
+    Enable/disable red CAP flights.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.cap.enabled"></a>
+    <strong>gcicap.blue.cap.enabled</strong>
+    </dt>
+    <dd>
+    Enable/disable blue CAP flights.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.gci.enabled"></a>
+    <strong>gcicap.red.gci.enabled</strong>
+    </dt>
+    <dd>
+    Enable/disable red GCI flights.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.gci.enabled"></a>
+    <strong>gcicap.blue.gci.enabled</strong>
+    </dt>
+    <dd>
+    Enable/disable blue GCI flights.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.limit_resources"></a>
+    <strong>gcicap.red.limit_resources</strong>
+    </dt>
+    <dd>
+    Enabel/disable resource limitation for red.
+ If set to true limits the amount of groups a side can spawn.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.limit_resources"></a>
+    <strong>gcicap.blue.limit_resources</strong>
+    </dt>
+    <dd>
+    Enabel/disable resource limitation for blue.
+
+
+
+
+
+    <h3>See also:</h3>
+    <ul>
+         <a href="../index.html#gcicap.red.limit_resources">gcicap.red.limit_resources</a>
+    </ul>
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.supply"></a>
+    <strong>gcicap.red.supply</strong>
+    </dt>
+    <dd>
+    Amount of groups(!) red has at it's disposal.
+ In other words how many Groups of airplanes
+ this side can spawn.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.supply"></a>
+    <strong>gcicap.blue.supply</strong>
+    </dt>
+    <dd>
+    Amount of groups(!) red has at it's disposal.
+
+
+
+
+
+    <h3>See also:</h3>
+    <ul>
+         <a href="../index.html#gcicap.red.supply">gcicap.red.supply</a>
+    </ul>
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.cap.zone_name"></a>
+    <strong>gcicap.red.cap.zone_name</strong>
+    </dt>
+    <dd>
+    Name of the trigger zone which defines red CAP zones.
+ This will be postfixed with the number of
+ the zone. e.g. "redCAPzone3" or "blueCAPzone1".</p>
+
+<p> Default: 'redCAPzone'.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.cap.zone_name"></a>
+    <strong>gcicap.blue.cap.zone_name</strong>
+    </dt>
+    <dd>
+    Name of the trigger zone which defines blue CAP zones.
+ Default: 'blueCAPzone'.
+
+
+
+
+
+    <h3>See also:</h3>
+    <ul>
+         <a href="../index.html#gcicap.red.cap.zone_name">gcicap.red.cap.zone_name</a>
+    </ul>
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.border_group"></a>
+    <strong>gcicap.red.border_group</strong>
+    </dt>
+    <dd>
+    Name of group which waypoints define the red border.
+ Default: 'redborder'.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.border_group"></a>
+    <strong>gcicap.blue.border_group</strong>
+    </dt>
+    <dd>
+    Name of group which waypoints define the blue border.
+ Default: 'blueborder'.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.gci.template_prefix"></a>
+    <strong>gcicap.gci.template_prefix</strong>
+    </dt>
+    <dd>
+    GCI template unit's names prefix.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.cap.template_prefix"></a>
+    <strong>gcicap.cap.template_prefix</strong>
+    </dt>
+    <dd>
+    CAP template unit's names prefix.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.template_count"></a>
+    <strong>gcicap.template_count</strong>
+    </dt>
+    <dd>
+    Count of template units.
+ Remember that this means you need that many
+ template units for each type. E.g. if the template_count is 2 you
+ would need two GCI and two CAP template units for each side.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.red.awacs"></a>
+    <strong>gcicap.red.awacs</strong>
+    </dt>
+    <dd>
+    Wether red will also acquire targets by AWACS aircraft.
+ This is is currently broken since isTargetDetected doesn't
+ seem to work with AWACS airplanes. Needs a workaround.</p>
+
+<p> Default false.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.blue.awacs"></a>
+    <strong>gcicap.blue.awacs</strong>
+    </dt>
+    <dd>
+    Wether blue will also acquire targets by AWACS aircraft.
+
+
+
+
+
+    <h3>See also:</h3>
+    <ul>
+         <a href="../index.html#gcicap.red.awacs">gcicap.red.awacs</a>
+    </ul>
+
+
+</dd>
+</dl>
+    <h2><a name="Class_gcicap_Flight"></a>Class gcicap.Flight </h2>
+
+        Flight class.
+    <dl class="function">
+    <dt>
+    <a name = "gcicap.Flight.getFlight"></a>
+    <strong>gcicap.Flight.getFlight (group)</strong>
+    </dt>
+    <dd>
+    Returns the flight for the given group.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">group</span>
+            <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a> or <span class="type">Group</span></span>
+         this can be a Group object
+ or the group name.
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="../index.html#gcicap.Flight">gcicap.Flight</a></span>
+        the flight for the given group.
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.Flight:new"></a>
+    <strong>gcicap.Flight:new (group, airbase, task, param)</strong>
+    </dt>
+    <dd>
+    Creates a new flight.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">group</span>
+            <span class="types"><span class="type">Group</span></span>
+         group of the flight.
+        </li>
+        <li><span class="parameter">airbase</span>
+            <span class="types"><span class="type">Airbase</span></span>
+         homplate of the new flight.
+        </li>
+        <li><span class="parameter">task</span>
+            <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         task of the new flight. Can be "cap" or "gci".
+        </li>
+        <li><span class="parameter">param</span>
+         task parameter. This can be a zone table if it's a
+ CAP flight or it could be a target unit if it's a GCI flight.
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.Flight:remove"></a>
+    <strong>gcicap.Flight:remove (self)</strong>
+    </dt>
+    <dd>
+    Removes the flight
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">self</span>
+            <span class="types"><a class="type" href="../index.html#gcicap.Flight">gcicap.Flight</a></span>
+         flight object
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.Flight:leaveCAPZone"></a>
+    <strong>gcicap.Flight:leaveCAPZone ()</strong>
+    </dt>
+    <dd>
+    Decreases active flights counter in this flights zone.
+ Actually just decreases the active flights
+ counter of a zone. Does NOT task the flight itself.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.Flight:enterCAPZone"></a>
+    <strong>gcicap.Flight:enterCAPZone ()</strong>
+    </dt>
+    <dd>
+    Increases active flights counter in this flights zone.
+ Actually just increases the active flights
+ counter of a zone. Does NOT task the flight itself.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.Flight:vectorToTarget"></a>
+    <strong>gcicap.Flight:vectorToTarget (intruder[, cold])</strong>
+    </dt>
+    <dd>
+    Tasks the flight to search and engage the target.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">intruder</span>
+            <span class="types"><span class="type">Unit</span></span>
+         target unit.
+        </li>
+        <li><span class="parameter">cold</span>
+            <span class="types"><span class="type">boolean</span></span>
+         whether the flight should not destroy
+ the target and just follow it. Default false.
+         (<em>optional</em>)
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.Flight:taskWithCAP"></a>
+    <strong>gcicap.Flight:taskWithCAP ([cold])</strong>
+    </dt>
+    <dd>
+    Tasks flight with combat air patrol.
+ Creates waypoints inside it's assigned zone and tasks
+ the flight with patroling along the route.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">cold</span>
+            <span class="types"><span class="type">boolean</span></span>
+         If set to true the flight won't
+ engage any enemy unit's it detects by itself. Default false.
+         (<em>optional</em>)
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.Flight:taskWithRTB"></a>
+    <strong>gcicap.Flight:taskWithRTB ([airbase[, cold]])</strong>
+    </dt>
+    <dd>
+    Tasks the flight to return to it's homeplate.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">airbase</span>
+            <span class="types"><span class="type">Airbase</span></span>
+         optionally use this as homeplate/airbase
+ to return to.
+         (<em>optional</em>)
+        </li>
+        <li><span class="parameter">cold</span>
+            <span class="types"><span class="type">boolean</span></span>
+         If set to true the flight won't
+ engage any targets it detects on the way back to base.
+ Default false.
+         (<em>optional</em>)
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+</dl>
+    <h2><a name="Functions"></a>Functions </h2>
+
+
+    <dl class="function">
+    <dt>
+    <a name = "gcicap.coalitionToSide"></a>
+    <strong>gcicap.coalitionToSide (coal)</strong>
+    </dt>
+    <dd>
+    Converts coaltion number to side string.
+ 0 = "neutral", 1 = "red", 2 = "blue"
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">coal</span>
+            <span class="types"><span class="type">number</span></span>
+         coaltion number.
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+        side
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.sideToCoalition"></a>
+    <strong>gcicap.sideToCoalition (side)</strong>
+    </dt>
+    <dd>
+    Converts side string to coaltion number.
+ 0 = "neutral", 1 = "red", 2 = "blue"
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">side</span>
+            <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         side string.
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">number</span></span>
+        coalition number.
+    </ol>
+
+
+    <h3>See also:</h3>
+    <ul>
+         <a href="../index.html#gcicap.coalitionToSide">coalitionToSide</a>
+    </ul>
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.getFirstActiveUnit"></a>
+    <strong>gcicap.getFirstActiveUnit (group)</strong>
+    </dt>
+    <dd>
+    Returns first active unit of a group.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">group</span>
+            <span class="types"><span class="type">Group</span></span>
+         group whose first active
+ unit to return.
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">Unit</span></span>
+        first active unit of group.
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.getClosestAirfieldToUnit"></a>
+    <strong>gcicap.getClosestAirfieldToUnit (side, unit)</strong>
+    </dt>
+    <dd>
+    Returns the closest airfield to unit.
+ Returned airfield is controlled by given side. This function
+ also returns the distance to the unit.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">side</span>
+            <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         side string, either "red" or "blue".
+ The airfield returned has to be controlled by this side.
+        </li>
+        <li><span class="parameter">unit</span>
+            <span class="types"><span class="type">Unit</span></span>
+         unit to use as reference.
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.5">table</a></span>
+        <a href="../index.html#closestAirfieldReturn">closestAirfieldReturn</a>
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "closestAirfieldReturn"></a>
+    <strong>closestAirfieldReturn</strong>
+    </dt>
+    <dd>
+    Table returned by getClosestAirfieldToUnit.
+
+
+    <h3>Fields:</h3>
+    <ul>
+        <li><span class="parameter">airfield</span>
+            <span class="types"><span class="type">Airbase</span></span>
+         the Airbase object
+        </li>
+        <li><span class="parameter">distance</span>
+            <span class="types"><span class="type">number</span></span>
+         the distance in meters
+ to the unit.
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.getClosestFlightsToUnit"></a>
+    <strong>gcicap.getClosestFlightsToUnit (side, unit)</strong>
+    </dt>
+    <dd>
+    Returns the closest flights to the given unit.
+ Flights returned are of given side. This function also returns
+ their distance to the unit. The returned flights are sorted
+ by distance. First is the closest.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">side</span>
+            <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         side whose flights to search.
+        </li>
+        <li><span class="parameter">unit</span>
+            <span class="types"><span class="type">Unit</span></span>
+         unit object used as reference.
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.5">table</a></span>
+        Array sorted by distance
+ containing <a href="../index.html#closestFlightsReturn">closestFlightsReturn</a> tables.
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "closestFlightsReturn"></a>
+    <strong>closestFlightsReturn</strong>
+    </dt>
+    <dd>
+    Table returned by getClosestFlightsToUnit.
+
+
+    <h3>Fields:</h3>
+    <ul>
+        <li><span class="parameter">flight</span>
+            <span class="types"><a class="type" href="../index.html#gcicap.Flight">gcicap.Flight</a></span>
+         object
+        </li>
+        <li><span class="parameter">distance</span>
+            <span class="types"><span class="type">number</span></span>
+         distance in meters from
+ the unit.
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.buildCAPRoute"></a>
+    <strong>gcicap.buildCAPRoute (zone[, wp_count])</strong>
+    </dt>
+    <dd>
+    Returns a table containting a CAP route.
+ Route originating from given airbase, waypoints
+ are placed randomly inside given zone. Optionally
+ you can specify the amount of waypoints inside the zone.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">zone</span>
+            <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         trigger zone name
+        </li>
+        <li><span class="parameter">wp_count</span>
+            <span class="types"><span class="type">number</span></span>
+         count of waypoints to
+ create.
+         (<em>optional</em>)
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.taskEngage"></a>
+    <strong>gcicap.taskEngage (group[, max_dist])</strong>
+    </dt>
+    <dd>
+    Tasks group to automatically engage any spotted targets.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">group</span>
+            <span class="types"><span class="type">Group</span></span>
+         group to task.
+        </li>
+        <li><span class="parameter">max_dist</span>
+            <span class="types"><span class="type">number</span></span>
+         maximum engagment distance.
+ Targets further out (from the route) won't be engaged.
+         (<em>optional</em>)
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.taskEngageInZone"></a>
+    <strong>gcicap.taskEngageInZone (group, center, radius)</strong>
+    </dt>
+    <dd>
+    Tasks group to engage targets inside a zone.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">group</span>
+            <span class="types"><span class="type">Group</span></span>
+         group to task.
+        </li>
+        <li><span class="parameter">center</span>
+            <span class="types"><span class="type">Vec2</span> or <span class="type">Point</span></span>
+         center of the zone.
+        </li>
+        <li><span class="parameter">radius</span>
+            <span class="types"><span class="type">number</span></span>
+         zone radius.
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.taskEngageGroup"></a>
+    <strong>gcicap.taskEngageGroup (group, target)</strong>
+    </dt>
+    <dd>
+    Tasks group to engage a group.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">group</span>
+            <span class="types"><span class="type">Group</span></span>
+         group to task.
+        </li>
+        <li><span class="parameter">target</span>
+            <span class="types"><span class="type">Group</span></span>
+         group that should be engaged by
+ given group.
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.spawnFighterGroup"></a>
+    <strong>gcicap.spawnFighterGroup (side, name, size, airbase, spawn_mode, task[, cold])</strong>
+    </dt>
+    <dd>
+    Spawns a fighter group.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">side</span>
+            <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         side of the newly created group.
+ Can be "red" or "blue".
+        </li>
+        <li><span class="parameter">name</span>
+            <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         new group name.
+        </li>
+        <li><span class="parameter">size</span>
+            <span class="types"><span class="type">number</span></span>
+         count of aircraft in the new group.
+        </li>
+        <li><span class="parameter">airbase</span>
+            <span class="types"><span class="type">Airbase</span></span>
+         home plate of the new group.
+        </li>
+        <li><span class="parameter">spawn_mode</span>
+            <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         How the new group will be spawned.
+ Can be 'parking' or 'air'. 'parking' will spawn them at the ramp
+ wit engines turned off. 'air' will spawn them in the air already
+ flying.
+        </li>
+        <li><span class="parameter">task</span>
+            <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         Task of the new group. Can either be 'cap',
+ for combat air patrol, or 'gci', for ground controlled intercept.
+        </li>
+        <li><span class="parameter">cold</span>
+            <span class="types"><span class="type">boolean</span></span>
+         if set to true the newly group won't engage
+ any enemys until tasked otherwise. Default false.
+         (<em>optional</em>)
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">Group</span> or <span class="type">nil</span></span>
+        newly spawned group or nil on failure.
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.despawnHandler"></a>
+    <strong>gcicap.despawnHandler (event)</strong>
+    </dt>
+    <dd>
+    Handle despawns/removal of flights created by GCICAP.
+ Don't call this function. It's automatically called by MIST.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">event</span>
+         event table
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.spawnCAP"></a>
+    <strong>gcicap.spawnCAP (side, zone, spawn_mode)</strong>
+    </dt>
+    <dd>
+    Spawns a CAP flight.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">side</span>
+            <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         side for the new CAP.
+        </li>
+        <li><span class="parameter">zone</span>
+            <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         CAP zone (trigger zone) name.
+        </li>
+        <li><span class="parameter">spawn_mode</span>
+            <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         how the new CAP will be spawned.
+ Can be 'parking' or 'air'.
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.spawnGCI"></a>
+    <strong>gcicap.spawnGCI (side, intruder, airbase)</strong>
+    </dt>
+    <dd>
+    Spawns a GCI flight.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">side</span>
+            <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         side for the new GCI.
+        </li>
+        <li><span class="parameter">intruder</span>
+            <span class="types"><span class="type">Unit</span></span>
+         unit to intercept.
+        </li>
+        <li><span class="parameter">airbase</span>
+            <span class="types"><span class="type">Airbase</span></span>
+         airbase where this GCI should spawn.
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.init"></a>
+    <strong>gcicap.init ()</strong>
+    </dt>
+    <dd>
+    Initialization function
+ Checks if all template units are present.  Creates
+ border polygons if borders enabled.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "gcicap.main"></a>
+    <strong>gcicap.main ()</strong>
+    </dt>
+    <dd>
+    Main function.
+ Run approx. every <a href="../index.html#gcicap.interval">gcicap.interval</a> sconds. A random amount
+ of 0 to 2 seconds is added for declustering.
+
+
+
+
+
+
+
+</dd>
+</dl>
+
+
+</div> <!-- id="content" -->
+</div> <!-- id="main" -->
+<div id="about">
+<i>generated by <a href="http://github.com/stevedonovan/LDoc">LDoc 1.4.3</a></i>
+<i style="float:right;">Last updated 2016-01-09 17:49:19 </i>
+</div> <!-- id="about" -->
+</div> <!-- id="container" -->
+</body>
+</html>
