@@ -23,6 +23,7 @@ SOFTWARE.
 ]]
 
 --[[--
+## Overview
 Autonomous GCI and CAP script for DCS: World.
 The script provides an autonomous model of combat air patrols and ground controlled
 interceptors for use with DCS World by mission builders.
@@ -35,7 +36,12 @@ Originally created by Snafu, enhanced and further modified by Stonehouse,
 Rivvern, Chameleon Silk.
 
 Rewritten by lukrop.
-@script gcicap
+
+## Links
+
+Github repository: <https://github.com/lukrop/GCICAP>
+
+@script GCICAP
 @author Snafu
 @author Stonehouse
 @author Rivvern
@@ -45,9 +51,6 @@ Rewritten by lukrop.
 @license Modified MIT. See LICENSE file.
 ]]
 
---- GCICAP global options.
--- @table gcicap
--- @field log_level defines logging verbosity.
 gcicap = {}
 gcicap.red = {}
 gcicap.red.gci = {}
@@ -58,150 +61,232 @@ gcicap.blue.cap = {}
 gcicap.cap = {}
 gcicap.gci = {}
 
--- enable/disable log messages completly
+--- Enable/disable log messages completly
 gcicap.log = true
--- sets how verbose the log output will be. Possible values are "info",
--- "warning" and "error". I recommend "error" for production.
+
+--- Sets how verbose the log output will be.
+-- Possible values are "info", "warning" and "error".
+-- I recommend "error" for production.
 gcicap.log_level = "info"
 
--- interval, in seconds, of main and vectorToTarget functions
+--- Interval, in seconds, of main and vectorToTarget functions.
+-- Default 30 seconds.
 gcicap.interval = 30
 
+--- Enable/disable borders for the red side.
 -- CAP units only engage if enemy units intrude their airspace
 gcicap.red.borders_enabled = false
+
+--- Enable/disable borders for the blue side.
+-- CAP units only engage if enemy units intrude their airspace
 gcicap.blue.borders_enabled = false
 
--- CAP minimum and maximum altitudes in meters
+--- CAP minimum altitudes in meters.
+-- Default 4500
 gcicap.cap.min_alt = 4500
+
+--- CAP maximum altitudes in meters.
+-- Default 7500
 gcicap.cap.max_alt = 7500
 
--- Speed for CAP flights on their CAP route
--- speed is in m/s
+--- Speed for CAP flights on their CAP route.
+-- speed is in m/s. Default 220.
 gcicap.cap.speed = 220
 
--- Speed for GCI flights on intercept
--- speed is in m/s
+--- Speed for GCI flights on intercept
+-- speed is in m/s. Default 300.
 gcicap.gci.speed = 300
 
--- maximum engage distance for CAP flights as long as they are on patrol.
+--- Maximum engage distance for CAP flights as long as they are on patrol.
 -- this might be overruled by an intercept vector given from
--- ground control (EWR).
+-- ground control (EWR). Default 15000.
 gcicap.cap.max_engage_distance = 15000
 
--- amount of waypoints inside the CAP zone.
+--- Amount of waypoints inside the CAP zone.
+-- Default 10.
 gcicap.cap.waypoints_count = 10
 
--- set to true for CAP flight to start airborne at script initialisation,
--- false for taking off from airfield at start
+--- Enable/disable red CAP flights airborne start.
+-- set to true for CAP flight to start airborne at script initialisation
+-- (mission start), false for taking off from the airfield.
+-- Default true.
 gcicap.red.cap.start_airborne = true
+
+--- Enable/disable blue CAP flights airborne start.
 gcicap.blue.cap.start_airborne = true
 
--- amount of CAP zones (placed with triggerzones in the ME) for each side
+--- Amount of red CAP zones.
+-- placed with triggerzones in the ME.
 gcicap.red.cap.zones_count = 3
+
+--- Amount of blue CAP zones.
 gcicap.blue.cap.zones_count = 3
 
--- amount of CAP groups concurrently in the air.
+--- Amount of red CAP groups concurrently in the air.
 gcicap.red.cap.groups_count = 3
+
+--- Amount of blue CAP groups concurrently in the air.
 gcicap.blue.cap.groups_count = 3
 
--- can be "2", "4" or "randomized"
--- if "2" it consists of 2 planes, if "4" it consists of 4 planes
+--- Group size of red CAP flights.
+-- Can be "2", "4" or "randomized"
+--
+-- If "2" it consists of 2 planes, if "4" it consists of 4 planes
 -- if "randomized", the CAP groups consist of either 2 or 4 planes
 gcicap.red.cap.group_size = "2"
+
+--- Group size of blue CAP flights.
+-- See @{gcicap.red.cap.group_size}
 gcicap.blue.cap.group_size = "2"
 
--- maximum number of at the same time ongoing active intercepts
+--- Maximum amount of concurrent red intercepts.
 gcicap.red.gci.groups_count = 2
+
+--- Maximum amount of concurrent blue intercepts.
 gcicap.blue.gci.groups_count = 2
 
--- can be "2", "4", "randomized" or "dynamic"
--- if "2" it consists of 2 planes, if "4" it consists of 4 planes
--- if "randomized", the CAP groups consist of either 2 or 4 planes
--- if "dynamic" it has the same size as the intercepted group
+--- Group size of red GCI flights.
+-- Can be "2", "4" or "dynamic"
+--
+-- If "2" it consists of 2 planes, if "4" it consists of 4 planes
+-- if "dynamic", the GCI groups consist of as much aircrafts
+-- as the intruder group.
 gcicap.red.gci.group_size = "dynamic"
+
+--- Group size of blue GCI flights.
+-- See @{gcicap.red.gci.group_size}
 gcicap.blue.gci.group_size = "dynamic"
 
--- enable messages from GCI
+--- Enable/disable GCI messages for red
 gcicap.red.gci.messages = true
+
+--- Enable/disable GCI messages for blue
 gcicap.blue.gci.messages = true
 
--- how long a GCI message will be shown in seconds
+--- How long a GCI message will be shown in seconds.
 gcicap.gci.message_time = 5
 
--- display GCI messages with metric measurment. If false the imperial system is used.
+--- Display GCI messages with metric measurment for red.
+-- If false the imperial system is used.
 gcicap.red.gci.messages_metric = true
+
+--- Display GCI messages with metric measurment for blue.
+-- If false the imperial system is used.
 gcicap.blue.gci.messages_metric = false
 
--- names of groups which will receive GCI messages
--- leave blank for all groups of coalition
--- e.g. gcicap.red.gci.messages_to = { "my group 1", "GCI Flight" }
+--- Names of red groups which will receive GCI messages.
+-- Leave blank for all groups of coalition
+-- @usage gcicap.red.gci.messages_to = { "my group 1", "GCI Flight" }
 gcicap.red.gci.messages_to = {}
+
+--- Names of blue groups which will receive GCI messages.
+-- See @{gcicap.red.gci.messages_to} for format.
 gcicap.blue.gci.messages_to = {}
 
+--- How red CAP flights are spawned.
 -- can be "parking", "takeoff" or "air" and defines the way the fighters spawn
 -- takeoff is NOT RECOMMENDED currently since their occur timing issues with tasking
 -- if a flight is queued for takeoff and not already in the game world while getting tasked
+--
+-- Default 'parking'
 gcicap.red.cap.spawn_mode = "parking"
+
+--- How red GCI flights are spawned.
+-- @see gcicap.red.cap.spawn_mode
 gcicap.red.gci.spawn_mode = "parking"
 
+--- How blue CAP flights are spawned.
+-- @see gcicap.red.cap.spawn_mode
 gcicap.blue.cap.spawn_mode = "parking"
+
+--- How blue GCI flights are spawned.
+-- @see gcicap.red.cap.spawn_mode
 gcicap.blue.gci.spawn_mode = "parking"
 
--- option to hide or reveal air units in the mission.
--- This setting affects both sides. Valid values are true/false to make units hidden/unhidden
+--- Hide or reveal blue air units in the mission.
 gcicap.blue.hide_groups = false
+
+--- Hide or reveal red air units in the mission.
 gcicap.red.hide_groups = false
 
--- wether the side does spawn groups for combat air patrols.
+--- Enable/disable red CAP flights.
 gcicap.red.cap.enabled = true
+
+--- Enable/disable blue CAP flights.
 gcicap.blue.cap.enabled = true
 
--- wether the side does spawn groups for ground controlled intercepts
+--- Enable/disable red GCI flights.
 gcicap.red.gci.enabled = true
+
+--- Enable/disable blue GCI flights.
 gcicap.blue.gci.enabled = true
 
--- if set to true limits the amount of groups a side can spawn.
+--- Enabel/disable resource limitation for red.
+-- If set to true limits the amount of groups a side can spawn.
 gcicap.red.limit_resources = false
+
+--- Enabel/disable resource limitation for blue.
+-- @see gcicap.red.limit_resources
 gcicap.blue.limit_resources = false
 
--- amount of groups(!) for blue and red
+--- Amount of groups(!) red has at it's disposal.
+-- In other words how many Groups of airplanes
+-- this side can spawn.
 gcicap.red.supply = 24
+
+--- Amount of groups(!) red has at it's disposal.
+-- @see gcicap.red.supply
 gcicap.blue.supply = 24
 
--- time limit, in seconds, after which a group gets removed, if a unit of it is still
--- on the ground. Consider big airfields and long taxi ways.
--- gcicap.stuck_limit = 1080
-
--- radius for cleaning up wrecks around airfields
--- gcicap.cleanup_radius = 3000
-
--- name of the triggerzone which defines a CAP zone, postfixed with the number of
+--- Name of the trigger zone which defines red CAP zones.
+-- This will be postfixed with the number of
 -- the zone. e.g. "redCAPzone3" or "blueCAPzone1".
+--
+-- Default: 'redCAPzone'.
 gcicap.red.cap.zone_name = 'redCAPzone'
+
+--- Name of the trigger zone which defines blue CAP zones.
+-- Default: 'blueCAPzone'.
+-- @see gcicap.red.cap.zone_name
 gcicap.blue.cap.zone_name = 'blueCAPzone'
 
--- name of group which waypoints define the border
+--- Name of group which waypoints define the red border.
+-- Default: 'redborder'.
 gcicap.red.border_group = 'redborder'
+
+--- Name of group which waypoints define the blue border.
+-- Default: 'blueborder'.
 gcicap.blue.border_group = 'blueborder'
 
--- template unit's names prefix.
+--- GCI template unit's names prefix.
 gcicap.gci.template_prefix = '__GCI__'
+
+--- CAP template unit's names prefix.
 gcicap.cap.template_prefix = '__CAP__'
--- count of template units. Remember that this means you need that many
+
+--- Count of template units.
+-- Remember that this means you need that many
 -- template units for each type. E.g. if the template_count is 2 you
 -- would need two GCI and two CAP template units for each side.
 gcicap.template_count = 2
 
-gcicap.sides = { "red", "blue" }
-gcicap.tasks = { "cap", "gci" }
+--- Wether red will also acquire targets by AWACS aircraft.
+-- This is is currently broken since isTargetDetected doesn't
+-- seem to work with AWACS airplanes. Needs a workaround.
+--
+-- Default false.
+gcicap.red.awacs = false
 
--- wether to also acquire targets by AWACS aircraft
-gcicap.red.awacs = true
-gcicap.blue.awacs = true
+--- Wether blue will also acquire targets by AWACS aircraft.
+-- @see gcicap.red.awacs
+gcicap.blue.awacs = false
 
 -- shortcut to the bullseye
 gcicap.red.bullseye = coalition.getMainRefPoint(coalition.side.RED)
 gcicap.blue.bullseye = coalition.getMainRefPoint(coalition.side.BLUE)
+
+gcicap.sides = { "red", "blue" }
+gcicap.tasks = { "cap", "gci" }
 
 do
   --- Flight class.
@@ -295,6 +380,9 @@ do
     table.remove(gcicap[self.side][self.task].flights, self.index)
   end
 
+  --- Decreases active flights counter in this flights zone.
+  -- Actually just decreases the active flights
+  -- counter of a zone. Does NOT task the flight itself.
   function gcicap.Flight:leaveCAPZone()
     local zone = self.zone
     if zone.patrol_count <= 1 then
@@ -305,6 +393,9 @@ do
     end
   end
 
+  --- Increases active flights counter in this flights zone.
+  -- Actually just increases the active flights
+  -- counter of a zone. Does NOT task the flight itself.
   function gcicap.Flight:enterCAPZone()
     self.intercepting = false
     local zone = self.zone
@@ -314,6 +405,10 @@ do
     end
   end
 
+  --- Tasks the flight to search and engage the target.
+  -- @tparam Unit intruder target unit.
+  -- @tparam[opt] boolean cold whether the flight should not destroy
+  -- the target and just follow it. Default false.
   function gcicap.Flight:vectorToTarget(intruder, cold)
     local target = nil
     if intruder.group then
@@ -408,6 +503,11 @@ do
     end
   end
 
+  --- Tasks flight with combat air patrol.
+  -- Creates waypoints inside it's assigned zone and tasks
+  -- the flight with patroling along the route.
+  -- @tparam[opt] boolean cold If set to true the flight won't
+  -- engage any enemy unit's it detects by itself. Default false.
   function gcicap.Flight:taskWithCAP(cold)
     local group = self.group
     local ctl = group:getController()
@@ -430,6 +530,12 @@ do
     end
   end
 
+  --- Tasks the flight to return to it's homeplate.
+  -- @tparam[opt] Airbase airbase optionally use this as homeplate/airbase
+  -- to return to.
+  -- @tparam[opt] boolean cold If set to true the flight won't
+  -- engage any targets it detects on the way back to base.
+  -- Default false.
   function gcicap.Flight:taskWithRTB(airbase, cold)
     if not airbase then
       airbase = self.airbase
@@ -479,6 +585,8 @@ do
     end
   end
 
+  --- Functions
+  -- @section gcicap
   local function checkForTemplateUnits(side)
     if gcicap[side].gci.enabled then
       for i = 1, gcicap.template_count do
@@ -586,20 +694,6 @@ do
     end
   end
 
-  function gcicap.coalitionToSide(coal)
-    if coal == coalition.side.NEUTRAL then return "neutral"
-    elseif coal == coalition.side.RED then return "red"
-    elseif coal == coalition.side.BLUE then return "blue"
-    end
-  end
-
-  function gcicap.sideToCoalition(side)
-    if side == "neutral" then return coalition.side.NEUTRAL
-    elseif side == "red" then return coalition.side.RED
-    elseif side == "blue" then return coalition.side.BLUE
-    end
-  end
-
   -- returns airfields of given side which are marked with
   -- triggerzones (triggerzone name is exactly the same as airfield name).
   local function getAirfields(side)
@@ -665,11 +759,11 @@ do
             or vec_type == "Patriot str" then
             table.insert(active_ewr, vec)
           end
-          -- if (vec_type == "A-50" and gcicap[side].awacas)
-          --   or (vec_type == "E-2D" and gcicap[side].awacs)
-          --   or (vec_type == "E-3A" and gcicap[side].awacs) then
-          --   table.insert(active_ewr, vec)
-          -- end
+          if (vec_type == "A-50" and gcicap[side].awacas)
+            or (vec_type == "E-2D" and gcicap[side].awacs)
+            or (vec_type == "E-3A" and gcicap[side].awacs) then
+            table.insert(active_ewr, vec)
+          end
         end
       end
     end
@@ -677,22 +771,6 @@ do
       env.warning ("[GCICAP] No active EWR for " .. side)
     end
     return active_ewr
-  end
-
-  function gcicap.getFirstActiveUnit(group)
-    if group ~= nil then
-      -- engrish mast0r isExistsingsed
-      if not group:isExist() then return nil end
-      local units = group:getUnits()
-      for i = 1, group:getSize() do
-        if units[i] then
-          return units[i]
-        end
-      end
-      return nil
-    else
-      return nil
-    end
   end
 
   local function checkForAirspaceIntrusion(side)
@@ -839,7 +917,74 @@ do
     return gcicap[side].airfields[rand]
   end
 
-  -- returns the closest airfield, of given side, and it's distance to the given unit
+  local function buildFirstWp(airbase, spawn_mode)
+    local airbase_pos = airbase:getPoint()
+    local airbase_id = airbase:getID()
+    local wp = mist.fixedWing.buildWP(airbase_pos)
+
+    if spawn_mode == "parking" then -- start from parking area
+      wp.airdromeId = airbase_id
+      wp.type = "TakeOffParking"
+      wp.action = "From Parking Area"
+    elseif spawn_mode == "takeoff" then -- or start from runway
+      wp.airdromeId = airbase_id
+      wp.type = "TakeOff"
+      wp.action = "From Runway"
+    end
+
+    return wp
+  end
+
+  --- Converts coaltion number to side string.
+  -- 0 = "neutral", 1 = "red", 2 = "blue"
+  -- @tparam number coal coaltion number.
+  -- @treturn string side
+  function gcicap.coalitionToSide(coal)
+    if coal == coalition.side.NEUTRAL then return "neutral"
+    elseif coal == coalition.side.RED then return "red"
+    elseif coal == coalition.side.BLUE then return "blue"
+    end
+  end
+
+  --- Converts side string to coaltion number.
+  -- 0 = "neutral", 1 = "red", 2 = "blue"
+  -- @tparam string side side string.
+  -- @treturn number coalition number.
+  -- @see coalitionToSide
+  function gcicap.sideToCoalition(side)
+    if side == "neutral" then return coalition.side.NEUTRAL
+    elseif side == "red" then return coalition.side.RED
+    elseif side == "blue" then return coalition.side.BLUE
+    end
+  end
+
+  --- Returns first active unit of a group.
+  -- @tparam Group group group whose first active
+  -- unit to return.
+  -- @treturn Unit first active unit of group.
+    function gcicap.getFirstActiveUnit(group)
+    if group ~= nil then
+      -- engrish mast0r isExistsingsed
+      if not group:isExist() then return nil end
+      local units = group:getUnits()
+      for i = 1, group:getSize() do
+        if units[i] then
+          return units[i]
+        end
+      end
+      return nil
+    else
+      return nil
+    end
+  end
+
+  --- Returns the closest airfield to unit.
+  -- Returned airfield is controlled by given side. This function
+  -- also returns the distance to the unit.
+  -- @tparam string side side string, either "red" or "blue".
+  -- The airfield returned has to be controlled by this side.
+  -- @tparam Unit unit unit to use as reference.
+  -- @treturn table @{closestAirfieldReturn}
   function gcicap.getClosestAirfieldToUnit(side, unit)
     if unit == nil then return nil end
     local airfields = gcicap[side].airfields
@@ -865,10 +1010,23 @@ do
         closest_af = af
       end
     end
+
+    --- Table returned by getClosestAirfieldToUnit.
+    -- @table closestAirfieldReturn
+    -- @tfield Airbase airfield the Airbase object
+    -- @tfield number distance the distance in meters
+    -- to the unit.
     return {airfield = closest_af, distance = min_distance}
   end
 
-  -- returns the closest flights, of given side, and their distances to the given unit
+  --- Returns the closest flights to the given unit.
+  -- Flights returned are of given side. This function also returns
+  -- their distance to the unit. The returned flights are sorted
+  -- by distance. First is the closest.
+  -- @tparam string side side whose flights to search.
+  -- @tparam Unit unit unit object used as reference.
+  -- @treturn table Array sorted by distance
+  -- containing @{closestFlightsReturn} tables.
   function gcicap.getClosestFlightsToUnit(side, unit)
     if unit == nil then return nil end
     local flights = gcicap[side].cap.flights
@@ -903,31 +1061,23 @@ do
           return false
         end
       end)
+
+      --- Table returned by getClosestFlightsToUnit.
+      -- @table closestFlightsReturn
+      -- @tfield gcicap.Flight flight object
+      -- @tfield number distance distance in meters from
+      -- the unit.
       return closest_flights
     end
   end
 
-  local function buildFirstWp(airbase, spawn_mode)
-    local airbase_pos = airbase:getPoint()
-    local airbase_id = airbase:getID()
-    local wp = mist.fixedWing.buildWP(airbase_pos)
-
-    if spawn_mode == "parking" then -- start from parking area
-      wp.airdromeId = airbase_id
-      wp.type = "TakeOffParking"
-      wp.action = "From Parking Area"
-    elseif spawn_mode == "takeoff" then -- or start from runway
-      wp.airdromeId = airbase_id
-      wp.type = "TakeOff"
-      wp.action = "From Runway"
-    end
-
-    return wp
-  end
-
-  -- Returns a table containting a CAP route, originating from given airbase
-  -- inside given zone. Optionally you can specify the amount of waypoints
-  -- inside the zone.
+  --- Returns a table containting a CAP route.
+  -- Route originating from given airbase, waypoints
+  -- are placed randomly inside given zone. Optionally
+  -- you can specify the amount of waypoints inside the zone.
+  -- @tparam string zone trigger zone name
+  -- @tparam[opt] number wp_count count of waypoints to
+  -- create.
   function gcicap.buildCAPRoute(zone, wp_count)
     -- randomize waypoint count if none given
     if wp_count == nil then
@@ -980,6 +1130,10 @@ do
     return route
   end
 
+  --- Tasks group to automatically engage any spotted targets.
+  -- @tparam Group group group to task.
+  -- @tparam[opt] number max_dist maximum engagment distance.
+  -- Targets further out (from the route) won't be engaged.
   function gcicap.taskEngage(group, max_dist)
     if not max_dist then
       max_dist = gcicap.cap.max_engage_distance
@@ -997,6 +1151,10 @@ do
     ctl:pushTask(engage)
   end
 
+  --- Tasks group to engage targets inside a zone.
+  -- @tparam Group group group to task.
+  -- @tparam Vec2|Point center center of the zone.
+  -- @tparam number radius zone radius.
   function gcicap.taskEngageInZone(group, center, radius)
     local ctl = group:getController()
     local engage_zone = {
@@ -1011,6 +1169,10 @@ do
     ctl:pushTask(engage_zone)
   end
 
+  --- Tasks group to engage a group.
+  -- @tparam Group group group to task.
+  -- @tparam Group target group that should be engaged by
+  -- given group.
   function gcicap.taskEngageGroup(group, target)
     local ctl = group:getController()
     local engage_group = {
@@ -1025,6 +1187,21 @@ do
     ctl:pushTask(engage_group)
   end
 
+  --- Spawns a fighter group.
+  -- @tparam string side side of the newly created group.
+  -- Can be "red" or "blue".
+  -- @tparam string name new group name.
+  -- @tparam number size count of aircraft in the new group.
+  -- @tparam Airbase airbase home plate of the new group.
+  -- @tparam string spawn_mode How the new group will be spawned.
+  -- Can be 'parking' or 'air'. 'parking' will spawn them at the ramp
+  -- wit engines turned off. 'air' will spawn them in the air already
+  -- flying.
+  -- @tparam string task Task of the new group. Can either be 'cap',
+  -- for combat air patrol, or 'gci', for ground controlled intercept.
+  -- @tparam[opt] boolean cold if set to true the newly group won't engage
+  -- any enemys until tasked otherwise. Default false.
+  -- @treturn Group|nil newly spawned group or nil on failure.
   function gcicap.spawnFighterGroup(side, name, size, airbase, spawn_mode, task, cold)
     local template_unit_name = gcicap[task].template_prefix..side..math.random(1, gcicap.template_count)
     local template_unit = Unit.getByName(template_unit_name)
@@ -1080,6 +1257,9 @@ do
     return Group.getByName(name)
   end
 
+  --- Handle despawns/removal of flights created by GCICAP.
+  -- Don't call this function. It's automatically called by MIST.
+  -- @param event event table
   function gcicap.despawnHandler(event)
     if event.id == world.event.S_EVENT_PILOT_DEAD or
       event.id == world.event.S_EVENT_CRASH or
@@ -1117,6 +1297,11 @@ do
     end
   end
 
+  --- Spawns a CAP flight.
+  -- @tparam string side side for the new CAP.
+  -- @tparam string zone CAP zone (trigger zone) name.
+  -- @tparam string spawn_mode how the new CAP will be spawned.
+  -- Can be 'parking' or 'air'.
   function gcicap.spawnCAP(side, zone, spawn_mode)
     -- increase flight number
     gcicap[side].cap.flight_num = gcicap[side].cap.flight_num + 1
@@ -1143,6 +1328,10 @@ do
     return group
   end
 
+  --- Spawns a GCI flight.
+  -- @tparam string side side for the new GCI.
+  -- @tparam Unit intruder unit to intercept.
+  -- @tparam Airbase airbase airbase where this GCI should spawn.
   function gcicap.spawnGCI(side, intruder, airbase)
     -- increase flight number
     gcicap[side].gci.flight_num = gcicap[side].gci.flight_num + 1
@@ -1182,7 +1371,8 @@ do
 
   --- Initialization function
   -- Checks if all template units are present. Creates
-  -- border polygons if borders enabled.......
+  -- border polygons if borders enabled.
+  -- @todo complete documentation.
   function gcicap.init()
     for i, side in pairs(gcicap.sides) do
       if not checkForTemplateUnits(side) then
@@ -1246,6 +1436,11 @@ do
     return true
   end
 
+  --- Main function.
+  -- Run approx. every @{gcicap.interval} sconds. A random amount
+  -- of 0 to 2 seconds is added for declustering.
+  -- @todo do the "declustering" at a different level. Probably
+  -- more efficient.
   function gcicap.main()
     for i, side in ipairs(gcicap.sides) do
       -- update list of occupied airfields
@@ -1267,7 +1462,7 @@ end
 
 if gcicap.init() then
   --local start_delay = gcicap.interval * math.max(gcicap.red.cap.groups_count, gcicap.blue.cap.groups_count)
-  mist.scheduleFunction(gcicap.main, {}, timer.getTime(), gcicap.interval + math.random(0,2))
+  mist.scheduleFunction(gcicap.main, {}, timer.getTime() + 2, gcicap.interval + math.random(0,2))
 end
 
 -- vim: sw=2:ts=2
