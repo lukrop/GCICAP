@@ -450,7 +450,7 @@ do
                               flight:taskWithRTB()\
                             end\
                           else\
-                            gcicap.log:error('Could not find flight for $1', group:getName())\
+                            gcicap.log:error('Could not find flight')\
                           end"
                         }
                       }
@@ -1102,7 +1102,7 @@ do
                 if flight then\
                   flight:taskWithRTB()\
                 else\
-                  gcicap.log:error('Could not find flight for $1', group:getName())\
+                  gcicap.log:error('Could not find flight')\
                 end"
               }
             }
@@ -1245,7 +1245,7 @@ do
   -- Don't call this function. It's automatically called by MIST.
   -- @param event event table
   function gcicap.despawnHandler(event)
-    if event.id == world.event.S_EVENT_PILOT_DEAD or
+    if event.id == world.event.S_EVENT_DEAD or
       event.id == world.event.S_EVENT_CRASH or
       event.id == world.event.S_EVENT_ENGINE_SHUTDOWN then
       local unit = event.initiator
@@ -1255,7 +1255,7 @@ do
       local flight = gcicap.Flight.getFlight(group:getName())
       -- check if we manage this group
       if flight then
-        if event.id == world.event.S_EVENT_PILOT_DEAD or
+        if event.id == world.event.S_EVENT_DEAD or
           event.id == world.event.S_EVENT_CRASH then
           -- it was the last unit of the flight so remove the flight
           if group:getSize() <= 1 then
