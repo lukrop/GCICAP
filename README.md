@@ -21,8 +21,8 @@ The script provides an autonomous model of combat air patrols and ground control
 
 
 ## Requirements
-This script requires my MIST fork.
-Download it here https://github.com/lukrop/MissionScriptingTools/
+At the time of writing this script requires the latest version of MIST.
+Download it here https://github.com/mrSkortch/MissionScriptingTools/tree/development
 
 ## Rewrite changes
 This is a rewrite of Stonehouse's version but it's written with backwards compatibility in mind. In the best case you should be able to use it in your mission as a drop-in replacement for the original version. The main differences to the original are:
