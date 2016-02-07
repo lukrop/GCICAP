@@ -21,8 +21,8 @@ The script provides an autonomous model of combat air patrols and ground control
 
 
 ## Requirements
-At the time of writing this script requires the latest version of MIST.
-Download it here https://github.com/mrSkortch/MissionScriptingTools/tree/development
+At the time of writing this script requires the development version of MIST.
+Download it here https://github.com/mrSkortch/MissionScriptingTools/blob/development/mist.lua
 
 ## Rewrite changes
 This is a rewrite of Stonehouse's version but it's written with backwards compatibility in mind. In the best case you should be able to use it in your mission as a drop-in replacement for the original version. The main differences to the original are:
@@ -61,7 +61,7 @@ If you choose to use borders the CAP flights will only engage enemy groups, dete
 To use borders you need to set `gcicap.red.borders_enabled = true` for the appropriate side. You can also enable borders for one side only. If you choose to enable borders you need to place a group whose waypoints build a polygon which defines the borders. The group needs to have the name defined in `gcicap.red.border_group` or `gcicap.blue.border_group`. The default is `redborder` for red and `blueborder` for blue. Don't forget to set the group to *LATE ACTIVATION* so it doesn't show up in the mission.
 
 ## API
-By the time of writing this I'm forking MIST, since I'd love to add some functionality/change some stuff. Probably some of the functions in GCICAP will change. But for now the master branch will be compatible with the original MIST.
+You might want to checkout the [API documentation here](https://lukrop.github.io/GCICAP/doc/).
 
 ### Flights
 Internally this script is using LUA tables to keep track of the units/groups spawned by it. They are called flights. I'll write something up soon, to explain their structure. In the meanwhile you can check them out in the source code. ;-)
