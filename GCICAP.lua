@@ -920,6 +920,10 @@ do
       wp.airdromeId = airbase_id
       wp.type = "TakeOff"
       wp.action = "From Runway"
+    elseif spawn_mode == "air" then
+      -- randomize spawn position a little bit in case of air start
+      wp.x = wp.x + (50 * math.sin(math.random(10)))
+      wp.y = wp.y + (50 * math.sin(math.random(10)))
     end
 
     return wp
