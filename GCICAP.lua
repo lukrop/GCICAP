@@ -1254,6 +1254,7 @@ do
       event.id == world.event.S_EVENT_ENGINE_SHUTDOWN) and
       event.initiator ~= nil then
       local unit = event.initiator
+      if not unit.getGroup then return end
       local group = unit:getGroup()
       if not group:isExist() then return end
       local side = gcicap.coalitionToSide(unit:getCoalition())
