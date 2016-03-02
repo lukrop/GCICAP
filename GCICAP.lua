@@ -447,7 +447,9 @@ do
                             if flight.zone then\
                               flight:taskWithCAP()\
                             else\
-                              flight:taskWithRTB()\
+                              if not flight.target then\
+                                flight:taskWithRTB()\
+                              end\
                             end\
                           else\
                             gcicap.log:error('Could not find flight')\
@@ -651,7 +653,7 @@ do
                   closest_cap = closest_flights[j]
                   cap_avail = (not closest_cap.flight.rtb) and (not closest_cap.flight.intercepting)
                   if cap_avail then
-                    gcicap.log:info("Found close CAP flight $1 which is avaliable for tasking.",
+                    gcicap.log:info("Found CAP flight $1 which is avaliable for tasking.",
                                     closest_cap.flight.group:getName())
                     break
                   end
@@ -659,23 +661,19 @@ do
               end
               if cap_avail then
                 -- check if we have a airfield which is closer to the unit than the CAP group
-                local closest_af = gcicap.getClosestAirfieldToUnit(side, intruder_unit)
-                if closest_af then
-                  if closest_cap.distance < closest_af.distance then
-                    -- task CAP flight with intercept
-                    closest_cap.flight:vectorToTarget(intruder)
-                    return
-                  end
+                local closest_af, af_distance = gcicap.getClosestAirfieldToUnit(side, intruder_unit)
+                if closest_cap.distance < af_distance or af_distance == -1 then
+                  -- task CAP flight with intercept
+                  closest_cap.flight:vectorToTarget(intruder)
+                  return
                 end
               end
               if (not gcicap[side].limit_resources
                   or (gcicap[side].limit_resources and gcicap[side].supply > 0))
                 and gcicap[side].gci.enabled then
                 -- spawn CGI
+                gcicap.log:info("Airfield closer to intruder than CAP or no CAP flight available. Starting GCI")
                 local gci = gcicap.spawnGCI(side, intruder)
-                gcicap.log:info("Airfield closer to intruder than CAP flight. Starting GCI")
-                --gcicap.log:info("Airfield $1 closer to intruder than CAP flight $2. Starting GCI $3.",
-                --                closest_af.airfield:getName(), closest_cap.flight.group:getName(), gci:getName())
               end
             end
           end
@@ -980,7 +978,10 @@ do
   -- @tparam Unit unit unit to use as reference.
   -- @treturn table @{closestAirfieldReturn}
   function gcicap.getClosestAirfieldToUnit(side, unit)
-    if unit == nil then return nil end
+    if not unit then
+      gcicap.log:error("Couldn't find unit.")
+      return
+    end
     local airfields = gcicap[side].airfields
 
     if #airfields == 0 then
@@ -1008,7 +1009,8 @@ do
     -- @tfield Airbase airfield the Airbase object
     -- @tfield number distance the distance in meters
     -- to the unit.
-    return {airfield = closest_af, distance = min_distance}
+    --return {airfield = closest_af, distance = min_distance}
+    return closest_af, min_distance
   end
 
   --- Returns the closest flights to the given unit.
@@ -1020,7 +1022,10 @@ do
   -- @treturn table Array sorted by distance
   -- containing @{closestFlightsReturn} tables.
   function gcicap.getClosestFlightsToUnit(side, unit)
-    if unit == nil then return nil end
+    if not unit then
+      gcicap.log:error("Couldn't find unit.")
+      return
+    end
     local flights = gcicap[side].cap.flights
     local closest_flights = {}
     if #flights == 0 then
@@ -1321,14 +1326,15 @@ do
   --- Spawns a GCI flight.
   -- @tparam string side side for the new GCI.
   -- @tparam Unit intruder unit to intercept.
-  -- @tparam Airbase airbase airbase where this GCI should spawn.
+  -- @tparam Airbase airbase airbase at which to spawn the GCI flight.
   function gcicap.spawnGCI(side, intruder, airbase)
     -- increase flight number
     gcicap[side].gci.flight_num = gcicap[side].gci.flight_num + 1
     -- select closest airfield to unit
-    local airbase = gcicap.getClosestAirfieldToUnit(side, target)
-    if airbase then
-      airbase = airbase.airbase
+    local intruder_unit = gcicap.getFirstActiveUnit(intruder.group)
+    local closest_af = gcicap.getClosestAirfieldToUnit(side, intruder_unit)
+    if closest_af then
+      airbase = closest_af
     else
       gcicap.log:warn("Couldn't find close airfield for GCI. Choosing one at random.")
       airbase = getRandomAirfield(side)
