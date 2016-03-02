@@ -605,6 +605,12 @@ do
         end
       end
     end
+    if gcicap[side].borders_enabled then
+      if not Group.getByName(gcicap[side].border_group) then
+        gcicap.log:alert("Border group is missing: $1", gcicap[side].border_group)
+        return false
+      end
+    end
     return true
   end
 
