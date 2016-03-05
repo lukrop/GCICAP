@@ -1283,8 +1283,11 @@ do
           local all_landed = true
           local someone_damaged = false
           for u, unit in pairs (group:getUnits()) do
-            if unit:inAir() then all_landed = false end
-            if unit:getLife0() > unit:getLife() then someone_damaged = true end
+            local life = unit:getLife()
+            if life > 1 then
+              if unit:inAir() then all_landed = false end
+              if unit:getLife0() > life then someone_damaged = true end
+            end
           end
           -- if al units are on the ground remove the flight and
           -- remove the units from the game world after 300 seconds
