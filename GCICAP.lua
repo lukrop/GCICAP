@@ -1085,17 +1085,18 @@ do
       wp_count = math.random(5,10)
     end
     local points = {}
+    -- make altitude consistent for the whole route.
+    local alt = math.random(gcicap.cap.min_alt, gcicap.cap.max_alt)
     -- create waypoints
     for i = 1, wp_count do
       -- get a random point inside the CAP zone
       local point = mist.getRandomPointInZone(zone)
       -- build a basic waypoint
       points[i] = mist.fixedWing.buildWP(point)
-      local alt = math.random(gcicap.cap.min_alt, gcicap.cap.max_alt)
       local ground_level = land.getHeight(point)
 
       -- avoid crashing into hills
-      if (alt - 50) < ground_level then
+      if (alt - 100) < ground_level then
         alt = alt + ground_level
       end
 
