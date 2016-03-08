@@ -1283,16 +1283,18 @@ do
           -- check if all units of the group are on the ground or damaged
           local all_landed = true
           local someone_damaged = false
+          local someone_killed = false
+          -- check if the group lost a ship
+          if group:getInitialSize() > group:getSize() then someone_killed = true end
+          -- check if any unit is damaged or not landed
           for u, unit in pairs (group:getUnits()) do
-            local life = unit:getLife()
-            if life > 1 then
-              if unit:inAir() then all_landed = false end
-              if unit:getLife0() > life then someone_damaged = true end
-            end
+            if unit:inAir() then all_landed = false end
+            if unit:getLife0() > unit:getLife() then someone_damaged = true end
           end
           -- if al units are on the ground remove the flight and
           -- remove the units from the game world after 300 seconds
-          if (all_landed and flight.rtb) or (all_landed and someone_damaged) then
+          if (all_landed and flight.rtb) or (all_landed and someone_damaged)
+            or (all_landed and someone_killed) then
             flight:remove()
             gcicap[side].supply = gcicap[side].supply + 1
             mist.scheduleFunction(Group.destroy, {group}, timer.getTime() + 300)
