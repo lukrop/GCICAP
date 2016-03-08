@@ -614,6 +614,17 @@ do
     return true
   end
 
+  local function checkForTriggerZones(side)
+    for i = 1, gcicap[side].cap.zones_count do
+      local zone_name = gcicap[side].cap.zone_name..i
+      if not trigger.misc.getZone(zone_name) then
+        gcicap.log:alert("CAP trigger zone is missing: $1", zone_name)
+        return false
+      end
+    end
+    return true
+  end
+
   local function manageCAP(side)
     local patroled_zones = 0
 
@@ -1381,7 +1392,7 @@ do
   -- @todo complete documentation.
   function gcicap.init()
     for i, side in pairs(gcicap.sides) do
-      if not checkForTemplateUnits(side) then
+      if not (checkForTemplateUnits(side) and checkForTriggerZones(side)) then
         return false
       end
       if gcicap[side].borders_enabled then
