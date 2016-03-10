@@ -700,6 +700,15 @@ do
         patroled_zones = patroled_zones + 1
       end
     end
+    -- if all zones are patroled and we still have cap groups left
+    -- send them to a random zone
+    if #gcicap[side].cap.flights < gcicap[side].cap.groups_count then
+      if not gcicap[side].limit_resources or
+        (gcicap[side].limit_resources and gcicap[side].supply > 0) then
+        local random_zone = math.random(1, #gcicap[side].cap.zones)
+        gcicap.spawnCAP(side, gcicap[side].cap.zones[random_zone], gcicap[side].cap.spawn_mode)
+      end
+    end
     gcicap.log:info("$1 patrols in $2/$3 zones", side, patroled_zones, gcicap[side].cap.zones_count)
   end
 
