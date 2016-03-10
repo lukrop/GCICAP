@@ -765,11 +765,12 @@ do
     for i = 1, #coal_airfields do
       -- get name of airfield
       local af_name = coal_airfields[i]:getName()
-      -- check if a triggerzone exists with that exact name
-      if mist.DBs.zonesByName[af_name] then
-        -- add it to our airfield list for gcicap
-        -- gcicap_airfields[#gcicap_airfields + 1] = { name = af_name }
-        gcicap_airfields[#gcicap_airfields + 1] = coal_airfields[i]
+      if not string.match(af_name, "FARP") then
+        -- check if a triggerzone exists with that exact name
+        if mist.DBs.zonesByName[af_name] then
+          -- add it to our airfield list for gcicap
+          gcicap_airfields[#gcicap_airfields + 1] = coal_airfields[i]
+        end
       end
     end
 
