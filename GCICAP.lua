@@ -278,6 +278,12 @@ gcicap.red.awacs = false
 -- @see gcicap.red.awacs
 gcicap.blue.awacs = false
 
+--- Garbage collector move timeout
+-- If a unit (aircraft) is on the ground and didn't move
+-- since this timeout, in seconds, it will be removed.
+-- This applies only to aircraft spawned by GCICAP.
+gcicap.move_timeout = 300
+
 -- shortcut to the bullseye
 gcicap.red.bullseye = coalition.getMainRefPoint(coalition.side.RED)
 gcicap.blue.bullseye = coalition.getMainRefPoint(coalition.side.BLUE)
@@ -352,7 +358,20 @@ do
       else
         f.intercepting = true
       end
+      -- is the flight RTB?
       f.rtb = false
+
+      -- get current timestamp
+      local timestamp = timer.getAbsTime()
+      f.units_moved = {}
+      -- set timestamp for each unit
+      -- this is later used for garbage collection checks
+      for u, unit in pairs(group:getUnits()) do
+        f.units_moved[u] = {}
+        f.units_moved[u].unit = unit
+        f.units_moved[u].last_moved = timestamp
+        f.units_moved[u].spawned_at = timestamp
+      end
 
       setmetatable(f, self)
       self.__index = self
@@ -586,6 +605,40 @@ do
 
   --- Functions
   -- @section gcicap
+
+  --- Clean up inactive/stuck flights.
+  local function garbageCollector(side)
+    local timestamp = timer.getAbsTime()
+    for t, task in pairs(gcicap.tasks) do
+      for f, flight in pairs(gcicap[side][task].flights) do
+        for u = 1, #flight.units_moved do
+          local unit = flight.units_moved[u].unit
+          -- check if unit exists
+          if unit then
+            if unit:isExist() then
+              -- if unit is in air we won't do anything
+              if not unit:inAir() then
+                -- check if unit is moving
+                local mag = mist.vec.mag(unit:getVelocity())
+                if mag == 0 then
+                  -- get the last time the unit moved
+                  local last_moved = flight.units_moved[u].last_moved
+                  if timestamp - last_moved > gcicap.move_timeout then
+                    gcicap.log:info("Cleaning up $1", flight.group:getName())
+                    flight.group:destroy()
+                    flight:remove()
+                  end
+                else
+                  flight.units_moved[u].last_moved = timestamp
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
   local function checkForTemplateUnits(side)
     if gcicap[side].gci.enabled then
       for i = 1, gcicap.template_count do
@@ -1273,43 +1326,18 @@ do
   -- @param event event table
   function gcicap.despawnHandler(event)
     if (event.id == world.event.S_EVENT_DEAD or
-      event.id == world.event.S_EVENT_CRASH or
-      event.id == world.event.S_EVENT_ENGINE_SHUTDOWN) and
-      event.initiator ~= nil then
+        event.id == world.event.S_EVENT_CRASH) and
+        event.initiator then
       local unit = event.initiator
       if not unit.getGroup then return end
       local group = unit:getGroup()
       if not group:isExist() then return end
-      local side = gcicap.coalitionToSide(unit:getCoalition())
       local flight = gcicap.Flight.getFlight(group:getName())
       -- check if we manage this group
       if flight then
-        if event.id == world.event.S_EVENT_DEAD or
-          event.id == world.event.S_EVENT_CRASH then
-          -- it was the last unit of the flight so remove the flight
-          if group:getSize() <= 1 then
-            flight:remove()
-          end
-        else
-          -- check if all units of the group are on the ground or damaged
-          local all_landed = true
-          local someone_damaged = false
-          local someone_killed = false
-          -- check if the group lost a ship
-          if group:getInitialSize() > group:getSize() then someone_killed = true end
-          -- check if any unit is damaged or not landed
-          for u, unit in pairs (group:getUnits()) do
-            if unit:inAir() then all_landed = false end
-            if unit:getLife0() > unit:getLife() then someone_damaged = true end
-          end
-          -- if al units are on the ground remove the flight and
-          -- remove the units from the game world after 300 seconds
-          if (all_landed and flight.rtb) or (all_landed and someone_damaged)
-            or (all_landed and someone_killed) then
-            flight:remove()
-            gcicap[side].supply = gcicap[side].supply + 1
-            mist.scheduleFunction(Group.destroy, {group}, timer.getTime() + 300)
-          end
+        -- if it was the last unit of the flight we remove the flight
+        if group:getSize() <= 1 then
+          flight:remove()
         end
       end
     end
@@ -1467,11 +1495,13 @@ do
       -- update list of all EWR
       gcicap[side].active_ewr = getAllActiveEWR(side)
     end
+
     -- check for airspace intrusions after updating all the lists
     for i, side in pairs(gcicap.sides) do
       manageCAP(side)
       checkForAirspaceIntrusion(side)
       handleIntrusion(side)
+      garbageCollector(side)
     end
   end
 
