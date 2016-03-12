@@ -377,7 +377,7 @@ do
       self.__index = self
 
       table.insert(gcicap[side][task].flights, f)
-      f.index = #gcicap[side][task].flights
+      --f.index = #gcicap[side][task].flights
       gcicap.log:info("Registered flight: $1", f.group_name)
 
       return f
@@ -391,11 +391,14 @@ do
   function gcicap.Flight:remove()
     if self.zone then
       if not self.intercepting then
-        --gcicap.Flight.leaveCAPZone(self)
         self:leaveCAPZone()
       end
     end
-    table.remove(gcicap[self.side][self.task].flights, self.index)
+    local f = getFlightIndex(self.group_name)
+    local r = table.remove(gcicap[f.side][f.task].flights, f.index)
+    if r then
+      gcicap.log:info("Removing flight $1 with index $2", r.group_name, r.index)
+    end
   end
 
   --- Decreases active flights counter in this flights zone.
@@ -405,7 +408,6 @@ do
     local zone = self.zone
     if zone.patrol_count <= 1 then
       zone.patrol_count = 0
-      zone.patroled = false
     else
       zone.patrol_count = zone.patrol_count - 1
     end
@@ -418,9 +420,6 @@ do
     self.intercepting = false
     local zone = self.zone
     zone.patrol_count = zone.patrol_count + 1
-    if not zone.patroled then
-      zone.patroled = true
-    end
   end
 
   --- Tasks the flight to search and engage the target.
@@ -464,7 +463,9 @@ do
                           local flight = gcicap.Flight.getFlight(group)\
                           if flight then\
                             if flight.zone then\
-                              flight:taskWithCAP()\
+                              if flight.intercepting then\
+                                flight:taskWithCAP()\
+                              end\
                             else\
                               if not flight.target then\
                                 flight:taskWithRTB()\
@@ -509,8 +510,10 @@ do
         -- the target is dead, resume CAP or RTB
       else
         if self.zone then
-          -- send CAP back to work
-          self:taskWithCAP()
+          if self.intercepting then
+            -- send CAP back to work
+            self:taskWithCAP()
+          end
         else
           -- send GCI back to homeplate
           self:taskWithRTB()
@@ -540,6 +543,9 @@ do
         route = cap_route
       }
     }
+
+    self.intercepting = false
+
     ctl:setTask(cap_task)
     self:enterCAPZone()
     ctl:setOption(AI.Option.Air.id.RADAR_USING, AI.Option.Air.val.RADAR_USING.FOR_SEARCH_IF_REQUIRED)
@@ -581,7 +587,8 @@ do
         route = {
           points = {
             [1] = {
-              alt = 2000,
+              alt = gcicap.cap.min_alt,
+              speed = gcicap.cap.speed,
               x = af_pos.x,
               y = af_pos.y,
               aerodromeId = af_id,
@@ -611,29 +618,37 @@ do
     local timestamp = timer.getAbsTime()
     for t, task in pairs(gcicap.tasks) do
       for f, flight in pairs(gcicap[side][task].flights) do
-        for u = 1, #flight.units_moved do
-          local unit = flight.units_moved[u].unit
-          -- check if unit exists
-          if unit then
-            if unit:isExist() then
-              -- if unit is in air we won't do anything
-              if not unit:inAir() then
-                -- check if unit is moving
-                local mag = mist.vec.mag(unit:getVelocity())
-                if mag == 0 then
-                  -- get the last time the unit moved
-                  local last_moved = flight.units_moved[u].last_moved
-                  if timestamp - last_moved > gcicap.move_timeout then
-                    gcicap.log:info("Cleaning up $1", flight.group:getName())
-                    flight.group:destroy()
-                    flight:remove()
+        if flight.group then
+          if flight.group:isExist() then
+            for u = 1, #flight.units_moved do
+              local unit = flight.units_moved[u].unit
+              -- check if unit exists
+              if unit then
+                if unit:isExist() then
+                  -- if unit is in air we won't do anything
+                  if not unit:inAir() then
+                    -- check if unit is moving
+                    local mag = mist.vec.mag(unit:getVelocity())
+                    if mag == 0 then
+                      -- get the last time the unit moved
+                      local last_moved = flight.units_moved[u].last_moved
+                      if timestamp - last_moved > gcicap.move_timeout then
+                        gcicap.log:info("Cleaning up $1", flight.group:getName())
+                        flight.group:destroy()
+                        flight:remove()
+                      end
+                    else
+                      flight.units_moved[u].last_moved = timestamp
+                    end
                   end
-                else
-                  flight.units_moved[u].last_moved = timestamp
                 end
               end
             end
+          else
+            flight:remove()
           end
+        else
+          flight:remove()
         end
       end
     end
@@ -683,9 +698,10 @@ do
 
     for i = 1, #gcicap[side].cap.zones do
       local zone = gcicap[side].cap.zones[i]
+      gcicap.log:info("Zone $1 has $2 patrols", zone.name, zone.patrol_count)
 
       -- see if we can send a new CAP into the zone
-      if not zone.patroled then
+      if zone.patrol_count <= 0 then
         -- first check if we already hit the maximum amounts of routine CAP groups
         if #gcicap[side].cap.flights < gcicap[side].cap.groups_count then
           -- check if we limit resources and if we have enough supplies
@@ -709,7 +725,8 @@ do
         gcicap.spawnCAP(side, gcicap[side].cap.zones[random_zone], gcicap[side].cap.spawn_mode)
       end
     end
-    gcicap.log:info("$1 patrols in $2/$3 zones", side, patroled_zones, gcicap[side].cap.zones_count)
+    gcicap.log:info("$1 patrols in $2/$3 zones with $4 flights",
+                    side, patroled_zones, gcicap[side].cap.zones_count, #gcicap[side].cap.flights)
   end
 
   local function handleIntrusion(side)
@@ -1176,8 +1193,6 @@ do
 
       points[i].alt = alt
       points[i].alt_type = "BARO"
-      points[i].x = point.x
-      points[i].y = point.y
       points[i].speed = gcicap.cap.speed
 
       if i == wp_count then
@@ -1456,7 +1471,6 @@ do
             name = zone_name,
             pos = point,
             radius = size,
-            patroled = false,
             patrol_count = 0,
           }
         end
@@ -1487,7 +1501,7 @@ do
       end
     end
     -- add event handler managing despawns
-    mist.addEventHandler(gcicap.despawnHandler)
+    --mist.addEventHandler(gcicap.despawnHandler)
     return true
   end
 
