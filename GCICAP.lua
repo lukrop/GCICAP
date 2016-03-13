@@ -99,9 +99,32 @@ gcicap.gci.speed = 300
 -- ground control (EWR). Default 15000.
 gcicap.cap.max_engage_distance = 15000
 
---- Amount of waypoints inside the CAP zone.
--- Default 10.
-gcicap.cap.waypoints_count = 10
+--- Minimum red CAP VUL time in minutes.
+-- Minimum time the red CAP flight will orbit on station.
+gcicap.red.cap.vul_time_min = 25
+
+--- Maximum red CAP VUL time in minutes.
+-- Maximum time the red CAP flight will orbit on station.
+gcicap.red.cap.vul_time_max = 40
+
+--- Minimum blue CAP VUL time in minutes.
+gcicap.blue.cap.vul_time_min = 25
+
+--- Maximum blue CAP VUL time in minutes.
+gcicap.blue.cap.vul_time_max = 30
+
+--- Minimum leg length for red CAP orbits in meters.
+gcicap.red.cap.leg_min = 10000
+
+--- Maximum leg length for red CAP orbits in meters.
+gcicap.red.cap.leg_min = 20000
+
+--- Minimum leg length for blue CAP orbits in meters.
+gcicap.blue.cap.leg_min = 10000
+
+--- Maximum leg length for blue CAP orbits in meters.
+gcicap.blue.cap.leg_min = 20000
+
 
 --- Enable/disable red CAP flights airborne start.
 -- set to true for CAP flight to start airborne at script initialisation
@@ -346,20 +369,20 @@ do
       f.group_name = group:getName()
       f.airbase = airbase
       f.task = task
+      -- is the flight RTB?
+      f.rtb = false
+
       if task == "cap" then
         f.zone = param
         f.zone_name = param.name
-      elseif task == "gci" then
+        f.intercepting = false
+        f.vul_time = math.random(gcicap[side].cap.vul_time_min,
+                                 gcicap[side].cap.vul_time_max)
+      else -- task should be "gci"
         f.target = param
         f.target_group = param.group
-      end
-      if task == "cap" then
-        f.intercepting = false
-      else
         f.intercepting = true
       end
-      -- is the flight RTB?
-      f.rtb = false
 
       -- get current timestamp
       local timestamp = timer.getAbsTime()
@@ -377,7 +400,6 @@ do
       self.__index = self
 
       table.insert(gcicap[side][task].flights, f)
-      --f.index = #gcicap[side][task].flights
       gcicap.log:info("Registered flight: $1", f.group_name)
 
       return f
@@ -410,6 +432,19 @@ do
       zone.patrol_count = 0
     else
       zone.patrol_count = zone.patrol_count - 1
+    end
+
+    -- get current time
+    local time_now = timer.getAbsTime()
+    -- get time on station by substracting vul start time from current time
+    -- and convert it to minutes
+    local time_on_station = (time_now - self.vul_start) / 60
+    local vul_diff = self.vul_time - time_on_station
+    -- set new vul time only if more than 5 minutes
+    if vul_diff > 5 then
+      self.vul_time = vul_diff
+    else
+      self.vul_time = 0
     end
   end
 
@@ -486,7 +521,6 @@ do
 
         -- checkout of the patrol zone
         if self.zone and not self.intercepting then
-          --gcicap.Flight.leaveCAPZone(self)
           self:leaveCAPZone()
         end
 
@@ -495,7 +529,6 @@ do
         ctl:setTask(gci_task)
 
         if not cold then
-          --gcicap.taskEngageInZone(flight.group, target_pos, 15000)
           gcicap.taskEngageGroup(self.group, intruder.group)
         end
 
@@ -503,15 +536,12 @@ do
                  intruder.group:getName(), target:getName())
 
         -- reschedule function until either the interceptor or the intruder is dead
-        --mist.scheduleFunction(gcicap.vectorToTarget, {flight, intruder, cold},
-        --                      timer.getTime() + gcicap.interval)
         mist.scheduleFunction(gcicap.Flight.vectorToTarget, {self, intruder, cold},
-        timer.getTime() + gcicap.interval)
-        -- the target is dead, resume CAP or RTB
-      else
+                              timer.getTime() + gcicap.interval)
+      else -- the target is dead, resume CAP or RTB
         if self.zone then
+          -- send CAP back to work only if still intercepting
           if self.intercepting then
-            -- send CAP back to work
             self:taskWithCAP()
           end
         else
@@ -534,26 +564,35 @@ do
   -- @tparam[opt] boolean cold If set to true the flight won't
   -- engage any enemy unit's it detects by itself. Default false.
   function gcicap.Flight:taskWithCAP(cold)
-    local group = self.group
-    local ctl = group:getController()
-    local cap_route = gcicap.buildCAPRoute(self.zone.name, gcicap.cap.waypoints_count)
-    local cap_task = {
-      id = 'Mission',
-      params = {
-        route = cap_route
+    -- only task with CAP if ther is still vul time left
+    if self.vul_time == 0 then
+      -- send flight RTB if no vul time left.
+      gcicap.log:info("No vul time left for $1", self.group_name)
+      self:taskWithRTB()
+    else
+      local group = self.group
+      local ctl = group:getController()
+      local side = gcicap.coalitionToSide(group:getCoalition())
+      local leg_dist = math.random(gcicap[side].cap.leg_min, gcicap[side].cap.leg_max)
+      local cap_route = gcicap.buildCAPRoute(self.zone.name, self.vul_time, leg_dist)
+      local cap_task = {
+        id = 'Mission',
+        params = {
+          route = cap_route
+        }
       }
-    }
 
-    self.intercepting = false
+      self.intercepting = false
 
-    ctl:setTask(cap_task)
-    self:enterCAPZone()
-    ctl:setOption(AI.Option.Air.id.RADAR_USING, AI.Option.Air.val.RADAR_USING.FOR_SEARCH_IF_REQUIRED)
+      ctl:setTask(cap_task)
+      self:enterCAPZone()
+      ctl:setOption(AI.Option.Air.id.RADAR_USING, AI.Option.Air.val.RADAR_USING.FOR_SEARCH_IF_REQUIRED)
 
-    if not cold then
-      gcicap.taskEngage(group)
+      if not cold then
+        gcicap.taskEngage(group)
+      end
+      gcicap.log:info("Tasking $1 with CAP in zone $2", group:getName(), self.zone.name)
     end
-    gcicap.log:info("Tasking $1 with CAP in zone $2", group:getName(), self.zone.name)
   end
 
   --- Tasks the flight to return to it's homeplate.
@@ -588,6 +627,7 @@ do
           points = {
             [1] = {
               alt = gcicap.cap.min_alt,
+              alt_type = "BARO",
               speed = gcicap.cap.speed,
               x = af_pos.x,
               y = af_pos.y,
@@ -1002,6 +1042,18 @@ do
     return gcicap[side].airfields[rand]
   end
 
+  --- Returns a point on the given radial from a given center at the given distance.
+  -- @tparam Vec2 point center point
+  -- @tparam number angle radial in degrees
+  -- @tparam number distance distance from center
+  local function getPointOnRadial(point, angle, distance)
+    local radians = math.rad(angle)
+    local new_point = {}
+    new_point.x = point.x + distance * math.cos(radians)
+    new_point.y = point.y + distance * math.sin(radians)
+    return new_point
+  end
+
   local function buildFirstWp(airbase, spawn_mode)
     local airbase_pos = airbase:getPoint()
     local airbase_id = airbase:getID()
@@ -1168,55 +1220,102 @@ do
   -- are placed randomly inside given zone. Optionally
   -- you can specify the amount of waypoints inside the zone.
   -- @tparam string zone trigger zone name
-  -- @tparam[opt] number wp_count count of waypoints to
-  -- create.
-  function gcicap.buildCAPRoute(zone, wp_count)
-    -- randomize waypoint count if none given
-    if wp_count == nil then
-      wp_count = math.random(5,10)
-    end
+  -- @tparam number vul_time time on station
+  -- @tparam number leg_distance leg distance for race-track pattern orbit.
+  function gcicap.buildCAPRoute(zone, vul_time, leg_distance)
     local points = {}
     -- make altitude consistent for the whole route.
     local alt = math.random(gcicap.cap.min_alt, gcicap.cap.max_alt)
-    -- create waypoints
-    for i = 1, wp_count do
-      -- get a random point inside the CAP zone
-      local point = mist.getRandomPointInZone(zone)
-      -- build a basic waypoint
-      points[i] = mist.fixedWing.buildWP(point)
-      local ground_level = land.getHeight(point)
 
-      -- avoid crashing into hills
-      if (alt - 100) < ground_level then
-        alt = alt + ground_level
-      end
-
-      points[i].alt = alt
-      points[i].alt_type = "BARO"
-      points[i].speed = gcicap.cap.speed
-
-      if i == wp_count then
-        points[i].task = {
-          id = 'WrappedAction',
-          params = {
-            action = {
-              id = 'Script',
-              params = {
-                command = "local group = ...\
+    local start_vul_script = "local group = ...\
                 local flight = gcicap.Flight.getFlight(group)\
                 if flight then\
+                  gcicap.log:info('$1 starting vul time $2 at $3',\
+                                  flight.group_name, flight.vul_time, flight.zone.name)\
+                  flight.vul_start = timer.getAbsTime()\
+                else\
+                  gcicap.log:error('Could not find flight')\
+                end"
+
+    local end_vul_script = "local group = ...\
+                local flight = gcicap.Flight.getFlight(group)\
+                if flight then\
+                  gcicap.log:info('$1 vul time over at $2',\
+                                  flight.group_name, flight.zone.name)\
                   flight:taskWithRTB()\
                 else\
                   gcicap.log:error('Could not find flight')\
                 end"
-              }
-            }
+
+    -- build orbit start waypoint
+    local orbit_start_point = mist.getRandomPointInZone(zone)
+    points[1] = mist.fixedWing.buildWP(orbit_start_point)
+    points[1].task = {}
+    points[1].task.id = 'ComboTask'
+    points[1].task.params = {}
+    points[1].task.params.tasks = {}
+    points[1].task.params.tasks[1] = {
+      number = 1,
+      auto = false,
+      id = 'WrappedAction',
+      enabled = true,
+      params = {
+        action = {
+          id = 'Script',
+          params = {
+            command = start_vul_script
           }
         }
-      end
+      }
+    }
+    points[1].task.params.tasks[2] = {
+      number = 2,
+      auto = false,
+      id = 'ControlledTask',
+      enabled = true,
+      params = {
+        task = {
+          id = 'Orbit',
+          params = {
+            altitude = alt,
+            pattern = 'Race-Track',
+            speed = gcicap.cap.speed
+          }
+        },
+        stopCondition = {
+          duration = vul_time * 60
+        }
+      }
+    }
+
+    -- build second waypoint (leg end waypoint)
+    local dir = math.random(0, 360)
+    local orbit_end_point = getPointOnRadial(orbit_start_point, dir, leg_distance)
+    points[2] = mist.fixedWing.buildWP(orbit_end_point)
+    points[2].task = {
+      id = 'WrappedAction',
+      params = {
+        action = {
+          id = 'Script',
+          params = {
+            command = end_vul_script
+          }
+        }
+      }
+    }
+
+    for i = 1, 2 do
+      points[i].speed = gcicap.cap.speed
+      points[i].alt = alt
     end
 
-    gcicap.log:info("Built CAP route with $1 waypoints in $2", wp_count, zone)
+    -- local ground_level = land.getHeight(point)
+    -- -- avoid crashing into hills
+    -- if (alt - 100) < ground_level then
+    --   alt = alt + ground_level
+    -- end
+
+    gcicap.log:info("Built CAP route with $1 min vul time at $2 meters in $3", vul_time, alt, zone)
 
     local route = {}
     route.points = points
@@ -1242,24 +1341,6 @@ do
       }
     }
     ctl:pushTask(engage)
-  end
-
-  --- Tasks group to engage targets inside a zone.
-  -- @tparam Group group group to task.
-  -- @tparam Vec2|Point center center of the zone.
-  -- @tparam number radius zone radius.
-  function gcicap.taskEngageInZone(group, center, radius)
-    local ctl = group:getController()
-    local engage_zone = {
-      id = 'EngageTargetsInZone',
-      params = {
-        point = center,
-        radius = radius,
-        targetTypes = { [1] = "Air" },
-        priority = 0
-      }
-    }
-    ctl:pushTask(engage_zone)
   end
 
   --- Tasks group to engage a group.
