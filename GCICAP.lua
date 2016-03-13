@@ -1403,6 +1403,15 @@ do
       unit_data[i].payload = template_unit_data.payload
       unit_data[i].skill = template_unit_data.skill
       unit_data[i].livery_id = template_unit_data.livery_id
+      if side == 'blue' then
+        unit_data[i].callsign = {}
+        unit_data[i].callsign[1] = 4 -- Colt
+        unit_data[i].callsign[2] = gcicap[side].cap.flight_num
+        unit_data[i].callsign[3] = i
+      else
+        local callsign = '6' .. gcicap[side].cap.flight_num .. i
+        unit_data[i].callsign = tonumber(callsign)
+      end
     end
 
     group_data.units = unit_data
