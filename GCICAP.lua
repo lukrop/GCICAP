@@ -70,6 +70,10 @@ gcicap.log_level = "info"
 -- Default 30 seconds.
 gcicap.interval = 30
 
+--- Initial spawn delay between CAPs
+-- Default 30 seconds.
+gcicap.initial_spawn_delay = 30
+
 --- Enable/disable borders for the red side.
 -- CAP units only engage if enemy units intrude their airspace
 gcicap.red.borders_enabled = false
@@ -113,6 +117,12 @@ gcicap.blue.cap.vul_time_min = 25
 --- Maximum blue CAP VUL time in minutes.
 gcicap.blue.cap.vul_time_max = 30
 
+--- Use race-track orbit for CAP flights
+-- If true CAPs will use a race-track pattern for orbit
+-- between two points in the CAP zone.
+gcicap.cap.race_track_orbit = false
+
+--[[ INOP at the time
 --- Minimum leg length for red CAP orbits in meters.
 gcicap.red.cap.leg_min = 10000
 
@@ -124,7 +134,7 @@ gcicap.blue.cap.leg_min = 10000
 
 --- Maximum leg length for blue CAP orbits in meters.
 gcicap.blue.cap.leg_min = 20000
-
+]]--
 
 --- Enable/disable red CAP flights airborne start.
 -- set to true for CAP flight to start airborne at script initialisation
@@ -1042,18 +1052,6 @@ do
     return gcicap[side].airfields[rand]
   end
 
-  --- Returns a point on the given radial from a given center at the given distance.
-  -- @tparam Vec2 point center point
-  -- @tparam number angle radial in degrees
-  -- @tparam number distance distance from center
-  local function getPointOnRadial(point, angle, distance)
-    local radians = math.rad(angle)
-    local new_point = {}
-    new_point.x = point.x + distance * math.cos(radians)
-    new_point.y = point.y + distance * math.sin(radians)
-    return new_point
-  end
-
   local function buildFirstWp(airbase, spawn_mode)
     local airbase_pos = airbase:getPoint()
     local airbase_id = airbase:getID()
@@ -1249,12 +1247,15 @@ do
 
     -- build orbit start waypoint
     local orbit_start_point = mist.getRandomPointInZone(zone)
+    -- add a bogus waypoint so the start vul time script block
+    -- isn't executed instantly after tasking
     points[1] = mist.fixedWing.buildWP(orbit_start_point)
-    points[1].task = {}
-    points[1].task.id = 'ComboTask'
-    points[1].task.params = {}
-    points[1].task.params.tasks = {}
-    points[1].task.params.tasks[1] = {
+    points[2] = mist.fixedWing.buildWP(orbit_start_point)
+    points[2].task = {}
+    points[2].task.id = 'ComboTask'
+    points[2].task.params = {}
+    points[2].task.params.tasks = {}
+    points[2].task.params.tasks[1] = {
       number = 1,
       auto = false,
       id = 'WrappedAction',
@@ -1268,7 +1269,7 @@ do
         }
       }
     }
-    points[1].task.params.tasks[2] = {
+    points[2].task.params.tasks[2] = {
       number = 2,
       auto = false,
       id = 'ControlledTask',
@@ -1288,11 +1289,20 @@ do
       }
     }
 
-    -- build second waypoint (leg end waypoint)
-    local dir = math.random(0, 360)
-    local orbit_end_point = getPointOnRadial(orbit_start_point, dir, leg_distance)
-    points[2] = mist.fixedWing.buildWP(orbit_end_point)
-    points[2].task = {
+    -- if we don't use the race-track pattern we'll add the vul end time
+    -- waypoint right where the start waypoint is and use the 'Circle' pattern.
+    local orbit_end_point
+    if not gcicap.cap.race_track_orbit then
+      points[2].task.params.tasks[2].params.task.params.pattern = 'Circle'
+      orbit_end_point = orbit_start_point
+    else
+      -- build second waypoint (leg end waypoint)
+      --local orbit_end_point = mist.getRandPointInCircle(orbit_start_point, leg_distance, leg_distance)
+      orbit_end_point = mist.getRandomPointInZone(zone)
+    end
+
+    points[3] = mist.fixedWing.buildWP(orbit_end_point)
+    points[3].task = {
       id = 'WrappedAction',
       params = {
         action = {
@@ -1304,7 +1314,7 @@ do
       }
     }
 
-    for i = 1, 2 do
+    for i = 1, 2, 3 do
       points[i].speed = gcicap.cap.speed
       points[i].alt = alt
     end
@@ -1409,8 +1419,7 @@ do
         unit_data[i].callsign[2] = gcicap[side].cap.flight_num
         unit_data[i].callsign[3] = i
       else
-        local callsign = '6' .. gcicap[side].cap.flight_num .. i
-        unit_data[i].callsign = tonumber(callsign)
+        unit_data[i].callsign = 600 + gcicap[side].cap.flight_num + i
       end
     end
 
@@ -1434,28 +1443,6 @@ do
     end
 
     return Group.getByName(name)
-  end
-
-  --- Handle despawns/removal of flights created by GCICAP.
-  -- Don't call this function. It's automatically called by MIST.
-  -- @param event event table
-  function gcicap.despawnHandler(event)
-    if (event.id == world.event.S_EVENT_DEAD or
-        event.id == world.event.S_EVENT_CRASH) and
-        event.initiator then
-      local unit = event.initiator
-      if not unit.getGroup then return end
-      local group = unit:getGroup()
-      if not group:isExist() then return end
-      local flight = gcicap.Flight.getFlight(group:getName())
-      -- check if we manage this group
-      if flight then
-        -- if it was the last unit of the flight we remove the flight
-        if group:getSize() <= 1 then
-          flight:remove()
-        end
-      end
-    end
   end
 
   --- Spawns a CAP flight.
@@ -1577,10 +1564,10 @@ do
             zone = gcicap[side].cap.zones[math.random(1, gcicap[side].cap.zones_count)]
           end
           -- actually spawn the group
-          local grp = gcicap.spawnCAP(side, zone, spawn_mode)
-          -- delay the spawn by 30 seconds after one another
-          -- local spawn_delay = (i - 1) * gcicap.interval
-          -- mist.scheduleFunction(gcicap.spawnCAP, {side, zone, spawn_mode}, timer.getTime() + spawn_delay)
+          --local grp = gcicap.spawnCAP(side, zone, spawn_mode)
+          -- delay the spawn by gcicap interval seconds after one another
+          local spawn_delay = (i - 1) * gcicap.initial_spawn_delay
+          mist.scheduleFunction(gcicap.spawnCAP, {side, zone, spawn_mode}, timer.getTime() + spawn_delay)
 
           if gcicap[side].cap.start_airborne then
             -- if we airstart telport the group into the CAP zone
@@ -1591,7 +1578,6 @@ do
       end
     end
     -- add event handler managing despawns
-    --mist.addEventHandler(gcicap.despawnHandler)
     return true
   end
 
@@ -1622,8 +1608,8 @@ do
 end
 
 if gcicap.init() then
-  --local start_delay = gcicap.interval * math.max(gcicap.red.cap.groups_count, gcicap.blue.cap.groups_count)
-  mist.scheduleFunction(gcicap.main, {}, timer.getTime() + 2, gcicap.interval + math.random(0,2))
+  local start_delay = gcicap.initial_spawn_delay * math.max(gcicap.red.cap.groups_count, gcicap.blue.cap.groups_count)
+  mist.scheduleFunction(gcicap.main, {}, timer.getTime() + start_delay, gcicap.interval)
 end
 
 -- vim: sw=2:ts=2
