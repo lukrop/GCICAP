@@ -66,9 +66,15 @@ gcicap.gci = {}
 -- I recommend "error" for production.
 gcicap.log_level = "info"
 
---- Interval, in seconds, of main and vectorToTarget functions.
+--- Interval, in seconds, of main function.
 -- Default 30 seconds.
 gcicap.interval = 30
+
+--- Interval, in seconds, GCI flights get vectors on targets.
+-- AI GCI flights don't use their radar, to be as stealth as
+-- possible, relying on those vectors.
+-- Default 15 seconds.
+gcicap.vector_interval = 15
 
 --- Initial spawn delay between CAPs
 -- Default 30 seconds.
@@ -448,7 +454,10 @@ do
     local time_now = timer.getAbsTime()
     -- get time on station by substracting vul start time from current time
     -- and convert it to minutes
-    local time_on_station = (time_now - self.vul_start) / 60
+    local time_on_station = 0
+    if self.vul_start then
+      time_on_station = (time_now - self.vul_start) / 60
+    end
     local vul_diff = self.vul_time - time_on_station
     -- set new vul time only if more than 5 minutes
     if vul_diff > 5 then
@@ -547,7 +556,7 @@ do
 
         -- reschedule function until either the interceptor or the intruder is dead
         mist.scheduleFunction(gcicap.Flight.vectorToTarget, {self, intruder, cold},
-                              timer.getTime() + gcicap.interval)
+                              timer.getTime() + gcicap.vector_interval)
       else -- the target is dead, resume CAP or RTB
         if self.zone then
           -- send CAP back to work only if still intercepting
@@ -555,6 +564,7 @@ do
             self:taskWithCAP()
           end
         else
+          self.intercepting = false
           -- send GCI back to homeplate
           self:taskWithRTB()
         end
@@ -787,40 +797,47 @@ do
         if intruder.group:isExist() then
           -- check if we need to do something about him
           if not intruder.intercepted then
-            -- check if we have something to work with
-            if #gcicap[side].cap.flights > 0 or
-              #gcicap[side].gci.flights < gcicap[side].gci.groups_count then
-              -- get closest unit
-              local closest_cap = nil
+            -- first check if we have something to work with
+            if #gcicap[side].cap.flights > 0
+              or #gcicap[side].gci.flights > 0
+              or #gcicap[side].gci.flights < gcicap[side].gci.groups_count then
+              -- get closest flight to intruder if there is any
+              local closest = nil
               local intruder_unit = gcicap.getFirstActiveUnit(intruder.group)
               local closest_flights = gcicap.getClosestFlightsToUnit(side, intruder_unit)
-              local cap_avail = false
+              -- we found close flights
+              local flight_avail = false
               if closest_flights then
                 for j = 1, #closest_flights do
-                  closest_cap = closest_flights[j]
-                  cap_avail = (not closest_cap.flight.rtb) and (not closest_cap.flight.intercepting)
-                  if cap_avail then
-                    gcicap.log:info("Found CAP flight $1 which is avaliable for tasking.",
-                                    closest_cap.flight.group:getName())
+                  closest = closest_flights[j]
+                  --fligh_avail = (not closest.flight.rtb) and (not closest.flight.intercepting)
+                  flight_avail = (not closest.flight.intercepting)
+                  if flight_avail then
+                    gcicap.log:info("Found flight $1 which is avaliable for tasking.",
+                                    closest.flight.group:getName())
                     break
                   end
                 end
               end
-              if cap_avail then
-                -- check if we have a airfield which is closer to the unit than the CAP group
+              if flight_avail then
+                -- check if we have a airfield which is closer to the unit than the closest flight
+                -- but add some distance to the airfield since it takes time for a potential spawned
+                -- flight to take-off
                 local closest_af, af_distance = gcicap.getClosestAirfieldToUnit(side, intruder_unit)
-                if closest_cap.distance < af_distance or af_distance == -1 then
-                  -- task CAP flight with intercept
-                  closest_cap.flight:vectorToTarget(intruder)
+                af_distance = af_distance + 15000 -- add 15km
+                if closest.distance < af_distance or af_distance == -1 then
+                  -- task flight with intercept
+                  closest.flight:vectorToTarget(intruder)
                   return
                 end
-              end
-              if (not gcicap[side].limit_resources
-                  or (gcicap[side].limit_resources and gcicap[side].supply > 0))
-                and gcicap[side].gci.enabled then
-                -- spawn CGI
-                gcicap.log:info("Airfield closer to intruder than CAP or no CAP flight available. Starting GCI")
-                local gci = gcicap.spawnGCI(side, intruder)
+                if (not gcicap[side].limit_resources
+                    or (gcicap[side].limit_resources and gcicap[side].supply > 0))
+                  and #gcicap[side].gci.flights < gcicap[side].gci.groups_count
+                  and gcicap[side].gci.enabled then
+                  -- spawn CGI
+                  gcicap.log:info("Airfield closer to intruder than flight or no flight available. Spawning GCI")
+                  local gci = gcicap.spawnGCI(side, intruder)
+                end
               end
             end
           end
@@ -1174,24 +1191,25 @@ do
       gcicap.log:error("Couldn't find unit.")
       return
     end
-    local flights = gcicap[side].cap.flights
     local closest_flights = {}
-    if #flights == 0 then
-      gcicap.log:info("No CAP flights of side $1 active", side)
+    if #gcicap[side].cap.flights == 0 and #gcicap[side].gci.flights == 0 then
+      gcicap.log:info("No CAP or GCI flights of side $1 active", side)
       return nil
     else
       local unit_pos = mist.utils.makeVec2(unit:getPoint())
       local min_distance = -1
-      --local closest_flight = nil
-      for i = 1, #flights do
-        if flights[i].group then
-          local u = gcicap.getFirstActiveUnit(flights[i].group)
-          if u then
-            local u_pos = mist.utils.makeVec2(u:getPoint())
-            local distance = mist.utils.get2DDist(unit_pos, u_pos)
-            table.insert(closest_flights, {flight = flights[i], distance = distance })
-          else
-            break
+      for t, task in pairs(gcicap.tasks) do
+        local flights = gcicap[side][task].flights
+        for i = 1, #flights do
+          if flights[i].group then
+            local u = gcicap.getFirstActiveUnit(flights[i].group)
+            if u then
+              local u_pos = mist.utils.makeVec2(u:getPoint())
+              local distance = mist.utils.get2DDist(unit_pos, u_pos)
+              table.insert(closest_flights, {flight = flights[i], distance = distance })
+            else
+              break
+            end
           end
         end
       end
