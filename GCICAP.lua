@@ -583,8 +583,9 @@ do
       local group = self.group
       local ctl = group:getController()
       local side = gcicap.coalitionToSide(group:getCoalition())
+      local start_pos = gcicap.getFirstActiveUnit(group):getPoint()
       local leg_dist = math.random(gcicap[side].cap.leg_min, gcicap[side].cap.leg_max)
-      local cap_route = gcicap.buildCAPRoute(self.zone.name, self.vul_time, leg_dist)
+      local cap_route = gcicap.buildCAPRoute(start_pos, self.zone.name, self.vul_time, leg_dist)
       local cap_task = {
         id = 'Mission',
         params = {
@@ -1220,7 +1221,7 @@ do
   -- @tparam string zone trigger zone name
   -- @tparam number vul_time time on station
   -- @tparam number leg_distance leg distance for race-track pattern orbit.
-  function gcicap.buildCAPRoute(zone, vul_time, leg_distance)
+  function gcicap.buildCAPRoute(start_pos, zone, vul_time, leg_distance)
     local points = {}
     -- make altitude consistent for the whole route.
     local alt = math.random(gcicap.cap.min_alt, gcicap.cap.max_alt)
@@ -1249,7 +1250,7 @@ do
     local orbit_start_point = mist.getRandomPointInZone(zone)
     -- add a bogus waypoint so the start vul time script block
     -- isn't executed instantly after tasking
-    points[1] = mist.fixedWing.buildWP(orbit_start_point)
+    points[1] = mist.fixedWing.buildWP(start_pos)
     points[2] = mist.fixedWing.buildWP(orbit_start_point)
     points[2].task = {}
     points[2].task.id = 'ComboTask'
@@ -1294,7 +1295,7 @@ do
     local orbit_end_point
     if not gcicap.cap.race_track_orbit then
       points[2].task.params.tasks[2].params.task.params.pattern = 'Circle'
-      orbit_end_point = orbit_start_point
+      orbit_end_point = start_pos
     else
       -- build second waypoint (leg end waypoint)
       --local orbit_end_point = mist.getRandPointInCircle(orbit_start_point, leg_distance, leg_distance)
