@@ -1333,7 +1333,7 @@ do
       }
     }
 
-    for i = 1, 2, 3 do
+    for i = 1, 3 do
       points[i].speed = gcicap.cap.speed
       points[i].alt = alt
     end
