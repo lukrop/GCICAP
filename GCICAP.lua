@@ -435,7 +435,7 @@ do
     local f = getFlightIndex(self.group_name)
     local r = table.remove(gcicap[f.side][f.task].flights, f.index)
     if r then
-      gcicap.log:info("Removing flight $1 with index $2", r.group_name, r.index)
+      gcicap.log:info("Removing flight $1 with index $2", r.group_name, f.index)
     end
   end
 
