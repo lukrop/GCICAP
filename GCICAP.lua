@@ -387,6 +387,7 @@ do
       f.task = task
       -- is the flight RTB?
       f.rtb = false
+      f.in_zone = false
 
       if task == "cap" then
         f.zone = param
@@ -428,9 +429,8 @@ do
   -- @tparam gcicap.Flight self flight object
   function gcicap.Flight:remove()
     if self.zone then
-      if not self.intercepting then
-        self:leaveCAPZone()
-      end
+      -- if we didn't already leave the zone do it now.
+      self:leaveCAPZone()
     end
     local f = getFlightIndex(self.group_name)
     local r = table.remove(gcicap[f.side][f.task].flights, f.index)
@@ -443,27 +443,30 @@ do
   -- Actually just decreases the active flights
   -- counter of a zone. Does NOT task the flight itself.
   function gcicap.Flight:leaveCAPZone()
-    local zone = self.zone
-    if zone.patrol_count <= 1 then
-      zone.patrol_count = 0
-    else
-      zone.patrol_count = zone.patrol_count - 1
-    end
+    if self.in_zone then
+      local zone = self.zone
+      if zone.patrol_count <= 1 then
+        zone.patrol_count = 0
+      else
+        zone.patrol_count = zone.patrol_count - 1
+      end
+      self.in_zone = false
 
-    -- get current time
-    local time_now = timer.getAbsTime()
-    -- get time on station by substracting vul start time from current time
-    -- and convert it to minutes
-    local time_on_station = 0
-    if self.vul_start then
-      time_on_station = (time_now - self.vul_start) / 60
-    end
-    local vul_diff = self.vul_time - time_on_station
-    -- set new vul time only if more than 5 minutes
-    if vul_diff > 5 then
-      self.vul_time = vul_diff
-    else
-      self.vul_time = 0
+      -- get current time
+      local time_now = timer.getAbsTime()
+      -- get time on station by substracting vul start time from current time
+      -- and convert it to minutes
+      local time_on_station = 0
+      if self.vul_start then
+        time_on_station = (time_now - self.vul_start) / 60
+      end
+      local vul_diff = self.vul_time - time_on_station
+      -- set new vul time only if more than 5 minutes
+      if vul_diff > 5 then
+        self.vul_time = vul_diff
+      else
+        self.vul_time = 0
+      end
     end
   end
 
@@ -471,9 +474,12 @@ do
   -- Actually just increases the active flights
   -- counter of a zone. Does NOT task the flight itself.
   function gcicap.Flight:enterCAPZone()
-    self.intercepting = false
-    local zone = self.zone
-    zone.patrol_count = zone.patrol_count + 1
+    if not self.in_zone then
+      self.intercepting = false
+      self.in_zone = true
+      local zone = self.zone
+      zone.patrol_count = zone.patrol_count + 1
+    end
   end
 
   --- Tasks the flight to search and engage the target.
@@ -631,8 +637,10 @@ do
       self:leaveCAPZone()
       local side = self.side
       -- let's try to spawn a new CAP flight as soon as the current one is tasked with RTB.
-      if not gcicap[side].limit_resources or
-        (gcicap[side].limit_resources and gcicap[side].supply > 0) then
+      -- never spawn more than 2 x the groups_count, to prevent spam in case something ever goes wrong.
+      if (not gcicap[side].limit_resources or
+        (gcicap[side].limit_resources and gcicap[side].supply > 0))
+        and #gcicap[side].cap.flights < gcicap[side].cap.groups_count * 2 then
         gcicap.spawnCAP(side, self.zone, gcicap[side].cap.spawn_mode)
       end
     end
@@ -1402,10 +1410,12 @@ do
   -- flying.
   -- @tparam string task Task of the new group. Can either be 'cap',
   -- for combat air patrol, or 'gci', for ground controlled intercept.
+  -- @tparam[opt] string zone zone name in which to spawn the unit. This only is
+  -- taken into account if spawn_mode is "in-zone".
   -- @tparam[opt] boolean cold if set to true the newly group won't engage
   -- any enemys until tasked otherwise. Default false.
   -- @treturn Group|nil newly spawned group or nil on failure.
-  function gcicap.spawnFighterGroup(side, name, size, airbase, spawn_mode, task, cold)
+  function gcicap.spawnFighterGroup(side, name, size, airbase, spawn_mode, task, zone, cold)
     local template_unit_name = gcicap[task].template_prefix..side..math.random(1, gcicap.template_count)
     local template_unit = Unit.getByName(template_unit_name)
     if not template_unit then
@@ -1421,12 +1431,23 @@ do
     local onboard_num = template_unit_data.onboard_num - 1
     local route = {}
 
+    local rand_point = {}
+    if spawn_mode == "in-zone" then
+      rand_point = mist.getRandomPointInZone(zone)
+    end
+
     for i = 1, size do
       unit_data[i] = {}
       unit_data[i].type = template_unit_data.type
       unit_data[i].name = name.." Pilot "..i
-      unit_data[i].x = airbase_pos.x
-      unit_data[i].y = airbase_pos.z
+      if spawn_mode == "in-zone" then
+        unit_data[i].x = rand_point.x + (50 * math.sin(math.random(10)))
+        unit_data[i].y = rand_point.y + (50 * math.sin(math.random(10)))
+      else
+        unit_data[i].x = airbase_pos.x + (50 * math.sin(math.random(10)))
+        unit_data[i].y = airbase_pos.z + (50 * math.sin(math.random(10)))
+      end
+      unit_data[i].alt = gcicap[side].cap.min_alt
       unit_data[i].onboard_num =  onboard_num + i
       unit_data[i].groupName = name
       unit_data[i].payload = template_unit_data.payload
@@ -1451,11 +1472,21 @@ do
     group_data.task = "CAP"
 
     route.points = {}
-    route.points[1] = buildFirstWp(airbase, spawn_mode)
+    if spawn_mode == "in-zone" then
+      route.points[1] = mist.fixedWing.buildWP(rand_point)
+      route.points[1].alt = gcicap[side].cap.min_alt
+      route.points[1].speed = gcicap[side].cap.speed
+    else
+      route.points[1] = buildFirstWp(airbase, spawn_mode)
+    end
     group_data.route = route
 
     if mist.groupTableCheck(group_data) then
-      gcicap.log:info("Spawning fighter group $1 at $2", name, airbase:getName())
+      local spawn_pos = airbase:getName()
+      if spawn_mode == "in-zone" then
+        spawn_pos = zone
+      end
+      gcicap.log:info("Spawning fighter group $1 at $2", name, spawn_pos)
       mist.dynAdd(group_data)
     else
       gcicap.log:error("Couldn't spawn group with following groupTable: $1", group_data)
@@ -1483,7 +1514,7 @@ do
       size = tonumber(size)
     end
     -- actually spawn something
-    local group = gcicap.spawnFighterGroup(side, group_name, size, airbase, spawn_mode, "cap")
+    local group = gcicap.spawnFighterGroup(side, group_name, size, airbase, spawn_mode, "cap", zone.name)
     --local ctl = group:getController()
     --ctl:setOption(AI.Option.Air.id.RADAR_USING, AI.Option.Air.val.RADAR_USING.FOR_ATTACK_ONLY)
     gcicap[side].supply = gcicap[side].supply - 1
@@ -1574,7 +1605,7 @@ do
         for i = 1, gcicap[side].cap.groups_count do
           local spawn_mode = "parking"
           if gcicap[side].cap.start_airborne then
-            spawn_mode = "air"
+            spawn_mode = "in-zone"
           end
           -- try to fill all zones
           local zone = gcicap[side].cap.zones[i]
@@ -1587,12 +1618,6 @@ do
           -- delay the spawn by gcicap interval seconds after one another
           local spawn_delay = (i - 1) * gcicap.initial_spawn_delay
           mist.scheduleFunction(gcicap.spawnCAP, {side, zone, spawn_mode}, timer.getTime() + spawn_delay)
-
-          if gcicap[side].cap.start_airborne then
-            -- if we airstart telport the group into the CAP zone
-            -- seems to work only with ME units
-            --mist.scheduleFunction(mist.teleportInZone, {grp:getName(), zone.name}, timer.getTime() + 10)
-          end
         end
       end
     end
