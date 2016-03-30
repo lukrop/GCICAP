@@ -1642,7 +1642,9 @@ do
 
     -- check for airspace intrusions after updating all the lists
     for i, side in pairs(gcicap.sides) do
-      manageCAP(side)
+      if gcicap[side].cap.enabled then
+        manageCAP(side)
+      end
       checkForAirspaceIntrusion(side)
       handleIntrusion(side)
       garbageCollector(side)
