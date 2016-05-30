@@ -856,6 +856,7 @@ do
                 af_distance = af_distance + 15000 -- add 15km
                 if closest.distance < af_distance or af_distance == -1 then
                   -- task flight with intercept
+                  closest.flight.give_up = false
                   closest.flight:vectorToTarget(intruder)
                   return
                 end
