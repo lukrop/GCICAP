@@ -384,7 +384,7 @@ do
       local side = gcicap.coalitionToSide(group:getCoalition())
       local f = {}
       f.side = side
-      f.giveUp = false
+      f.give_up = false
       f.group = group
       f.group_name = group:getName()
       f.airbase = airbase
@@ -500,7 +500,7 @@ do
 
     -- check if interceptor even still exists
     if self.group:isExist() then
-      if target:isExist() and target:inAir() and self.giveUp ~= true then
+      if target:isExist() and target:inAir() and self.give_up ~= true then
         local target_pos = target:getPoint()
         local ctl = self.group:getController()
 
@@ -528,7 +528,7 @@ do
                           command = "local group = ...\
                           local flight = gcicap.Flight.getFlight(group)\
                           if flight then\
-                            flight.giveUp = true\
+                            flight.give_up = true\
                             if flight.zone then\
                               if flight.intercepting then\
                                 flight:taskWithCAP()\
@@ -562,7 +562,7 @@ do
           -- if there's still an EWR detecting or we are responding to the initial call
           -- then set the target position. do not allow revectoring if no EWR is detecting us now
           if (Unit.isExist(intruder.detected_by) and intruder.detected_by:isActive()) then
-            self.giveUp = false
+            self.give_up = false
             self.intercept_point = mist.utils.deepCopy(target_pos)
             ctl:setTask(gci_task)
             gcicap.log:info("Vectoring $1 to $2 ($3)", self.group:getName(),
