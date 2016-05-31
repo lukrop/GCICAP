@@ -972,6 +972,7 @@ do
     local active_ewr = gcicap[side].active_ewr
     local intruder_count = 0
     local intruder_side = ""
+    local toremove = {}
     if side == "red" then
       -- set the side of the intruder
       intruder_side = "blue"
@@ -1103,15 +1104,21 @@ do
                   break
                 end
               end
-              if in_list then
-                table.remove(gcicap[side].intruders,intruder_num)
-                gcicap.log:info("Aircraft "..ac:getName().." no longer intruding")
-              end
+              if in_list then toremove[#toremove + 1] = intruder_num end
             end -- if ac_detected
           end -- if ac_group is existing
         end -- if ac ~= nil
       end -- for #active_ac
     end -- if active_ac > 0 and active_ewr > 0
+
+    -- we need to remove intruders from outside the loop
+    if #toremove > 0 then
+      for i = 1,#toremove do
+        intruder_count = intruder_count - 1
+        gcicap.log:info("Aircraft "..gcicap[side].intruders[i].name.." no longer intruding")
+        table.remove(gcicap[side].intruders,i)
+      end
+    end
     if intruder_count > 0 then
       return true
     else
