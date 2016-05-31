@@ -868,6 +868,15 @@ do
                   gcicap.log:info("Airfield closer to intruder than flight or no flight available. Spawning GCI")
                   local gci = gcicap.spawnGCI(side, intruder)
                 end
+              else
+                if (not gcicap[side].limit_resources
+                    or (gcicap[side].limit_resources and gcicap[side].supply > 0))
+                  and #gcicap[side].gci.flights < gcicap[side].gci.groups_count
+                  and gcicap[side].gci.enabled then
+                  -- spawn CGI
+                  gcicap.log:info("No CAP flights or already airborne GCI. Spawning GCI")
+                  local gci = gcicap.spawnGCI(side, intruder)
+                end
               end
             end
           end
