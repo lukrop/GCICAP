@@ -1034,7 +1034,7 @@ do
               end
               -- and check if the EWR detected the aircraft
               if ewr_controller:isTargetDetected(ac, RADAR) then
-                ewr = active_ewr[n]
+                ewr = active_ewr[n]['unit']
                 ac_detected = true
                 -- stop once it was detected by one EWR
                 break
