@@ -76,6 +76,9 @@ gcicap.interval = 30
 -- Default 15 seconds.
 gcicap.vector_interval = 15
 
+--- How far does a target have to move before an intercept is revectored
+gcicap.revector_threshold = 15000
+
 --- Initial spawn delay between CAPs
 -- Default 30 seconds.
 gcicap.initial_spawn_delay = 30
@@ -381,6 +384,7 @@ do
       local side = gcicap.coalitionToSide(group:getCoalition())
       local f = {}
       f.side = side
+      f.give_up = false
       f.group = group
       f.group_name = group:getName()
       f.airbase = airbase
@@ -399,6 +403,7 @@ do
         f.target = param
         f.target_group = param.group
         f.intercepting = true
+        f.intercept_point = { x = 0, y = 0, z = 0 }
       end
 
       -- get current timestamp
@@ -492,9 +497,10 @@ do
       target = gcicap.getFirstActiveUnit(intruder.group)
     end
     if target == nil or intruder.group == nil then return end
+
     -- check if interceptor even still exists
     if self.group:isExist() then
-      if target:isExist() and target:inAir() then
+      if target:isExist() and target:inAir() and self.give_up ~= true then
         local target_pos = target:getPoint()
         local ctl = self.group:getController()
 
@@ -504,6 +510,32 @@ do
             route = {
               points = {
                 [1] = {
+                  alt = target_pos.y,
+                  x = target_pos.x,
+                  y = target_pos.z,
+                  speed = gcicap.gci.speed,
+                  action = "Turning Point",
+                  type = "Turning Point",
+                  task = {
+                    id = "ComboTask",
+                    params = {
+                      tasks = {
+                        [1] = {
+                          number = 1,
+                          key = "CAP",
+                          id = "EngageTargets",
+                          enabled = true,
+                          auto = true,
+                          params = {
+                            targetTypes = { [1] = "Air" },
+                            priority = 0
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                [2] = {
                   alt = target_pos.y,
                   x = target_pos.x,
                   y = target_pos.z,
@@ -522,6 +554,7 @@ do
                           command = "local group = ...\
                           local flight = gcicap.Flight.getFlight(group)\
                           if flight then\
+                            flight.give_up = true\
                             if flight.zone then\
                               if flight.intercepting then\
                                 flight:taskWithCAP()\
@@ -550,20 +583,34 @@ do
         end
 
         intruder.intercepted = true
-        self.intercepting = true
-        ctl:setTask(gci_task)
-
-        if not cold then
-          gcicap.taskEngageGroup(self.group, intruder.group)
-        end
-
-        gcicap.log:info("Vectoring $1 to $2 ($3)", self.group:getName(),
+        -- only set/reset the task if the target has moved significantly since last GCI update
+        if mist.utils.get3DDist( target_pos, self.intercept_point ) > gcicap.revector_threshold then
+          -- if there's still an EWR detecting or we are responding to the initial call
+          -- then set the target position. do not allow revectoring if no EWR is detecting us now
+          if (Unit.isExist(intruder.detected_by) and intruder.detected_by:isActive()) then
+            self.give_up = false
+            self.intercept_point = mist.utils.deepCopy(target_pos)
+            ctl:setTask(gci_task)
+            gcicap.log:info("Vectoring $1 to $2 ($3)", self.group:getName(),
                  intruder.group:getName(), target:getName())
+
+          else
+            gcicap.log:info("Cannot revector $1 to $2 because no longer detecting",self.group:getName(),intruder.group:getName())
+          end
+        end
+        self.intercepting = true
+        
+        -- taskEngageGroup provides omniscient knowledge of where the group to be attacked is, which sucks
+        if not cold then
+          --gcicap.taskEngageGroup(self.group, intruder.group)
+          gcicap.taskEngage(self.group, 15000)
+        end
 
         -- reschedule function until either the interceptor or the intruder is dead
         mist.scheduleFunction(gcicap.Flight.vectorToTarget, {self, intruder, cold},
                               timer.getTime() + gcicap.vector_interval)
-      else -- the target is dead, resume CAP or RTB
+
+      else -- the target is dead or we had to give up, resume CAP or RTB
         if self.zone then
           -- send CAP back to work only if still intercepting
           if self.intercepting then
@@ -610,7 +657,7 @@ do
       }
 
       self.intercepting = false
-
+      self.intercept_point = { x = 0, y = 0, z = 0 }
       ctl:setTask(cap_task)
       self:enterCAPZone()
       ctl:setOption(AI.Option.Air.id.RADAR_USING, AI.Option.Air.val.RADAR_USING.FOR_SEARCH_IF_REQUIRED)
@@ -835,6 +882,7 @@ do
                 af_distance = af_distance + 15000 -- add 15km
                 if closest.distance < af_distance or af_distance == -1 then
                   -- task flight with intercept
+                  closest.flight.give_up = false
                   closest.flight:vectorToTarget(intruder)
                   return
                 end
@@ -844,6 +892,15 @@ do
                   and gcicap[side].gci.enabled then
                   -- spawn CGI
                   gcicap.log:info("Airfield closer to intruder than flight or no flight available. Spawning GCI")
+                  local gci = gcicap.spawnGCI(side, intruder)
+                end
+              else
+                if (not gcicap[side].limit_resources
+                    or (gcicap[side].limit_resources and gcicap[side].supply > 0))
+                  and #gcicap[side].gci.flights < gcicap[side].gci.groups_count
+                  and gcicap[side].gci.enabled then
+                  -- spawn CGI
+                  gcicap.log:info("No CAP flights or already airborne GCI. Spawning GCI")
                   local gci = gcicap.spawnGCI(side, intruder)
                 end
               end
@@ -941,6 +998,7 @@ do
     local active_ewr = gcicap[side].active_ewr
     local intruder_count = 0
     local intruder_side = ""
+    local toremove = {}
     if side == "red" then
       -- set the side of the intruder
       intruder_side = "blue"
@@ -1059,11 +1117,34 @@ do
                   mist.message.add(msg)
                 end
               end -- if ac_intruded
+            else
+              -- the ac is _not_ intruding so we should remove it from the intruders list
+
+              local in_list = false
+              local intruder_num = 0
+              -- check if we already know about the intruder
+              for j = 1, #gcicap[side].intruders do
+                if gcicap[side].intruders[j].name == ac_group:getName() then
+                  in_list = true
+                  intruder_num = j
+                  break
+                end
+              end
+              if in_list then toremove[#toremove + 1] = intruder_num end
             end -- if ac_detected
           end -- if ac_group is existing
         end -- if ac ~= nil
       end -- for #active_ac
     end -- if active_ac > 0 and active_ewr > 0
+
+    -- we need to remove intruders from outside the loop
+    if #toremove > 0 then
+      for i = 1,#toremove do
+        intruder_count = intruder_count - 1
+        gcicap.log:info("Aircraft "..gcicap[side].intruders[i].name.." no longer intruding")
+        table.remove(gcicap[side].intruders,i)
+      end
+    end
     if intruder_count > 0 then
       return true
     else
