@@ -976,13 +976,13 @@ do
             or vec_type == "1L13 EWR"
             or vec_type == "Hawk sr"
             or vec_type == "Patriot str" then
-            table.insert(active_ewr, vec)
+            table.insert(active_ewr, { unit = vec, is_awacs = false} )
           end
           -- ED has a bug; the E-2D vehicle has type E-2C
           if (vec_type == "A-50" and gcicap[side].awacs)
             or (vec_type == "E-2C" and gcicap[side].awacs)
             or (vec_type == "E-3A" and gcicap[side].awacs) then
-            table.insert(active_ewr, vec)
+            table.insert(active_ewr, { unit = vec, is_awacs = true} )
           end
         end
       end
@@ -1026,7 +1026,12 @@ do
 
             -- now loop over all ewr units
             for n = 1, #active_ewr do
-              local ewr_controller = active_ewr[n]:getGroup():getController()
+              local ewr_controller = nil
+              if active_ewr[n]['is_awacs'] then
+                ewr_controller = active_ewr[n]['unit']:getController()
+              else
+                ewr_controller = active_ewr[n]['unit']:getGroup():getController()
+              end
               -- and check if the EWR detected the aircraft
               if ewr_controller:isTargetDetected(ac, RADAR) then
                 ewr = active_ewr[n]
