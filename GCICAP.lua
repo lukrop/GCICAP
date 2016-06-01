@@ -517,6 +517,32 @@ do
                   action = "Turning Point",
                   type = "Turning Point",
                   task = {
+                    id = "ComboTask",
+                    params = {
+                      tasks = {
+                        [1] = {
+                          number = 1,
+                          key = "CAP",
+                          id = "EngageTargets",
+                          enabled = true,
+                          auto = true,
+                          params = {
+                            targetTypes = { [1] = "Air" },
+                            priority = 0
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                [2] = {
+                  alt = target_pos.y,
+                  x = target_pos.x,
+                  y = target_pos.z,
+                  speed = gcicap.gci.speed,
+                  action = "Turning Point",
+                  type = "Turning Point",
+                  task = {
                     -- i don't really like this WrappedAction but it's needed in
                     -- the case the CGI completes this waypoint because of lack/loss
                     -- of target
