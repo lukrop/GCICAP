@@ -1027,14 +1027,14 @@ do
             -- now loop over all ewr units
             for n = 1, #active_ewr do
               local ewr_controller = nil
-              if active_ewr[n]['is_awacs'] then
-                ewr_controller = active_ewr[n]['unit']:getController()
+              if active_ewr[n].is_awacs then
+                ewr_controller = active_ewr[n].unit:getController()
               else
-                ewr_controller = active_ewr[n]['unit']:getGroup():getController()
+                ewr_controller = active_ewr[n].unit:getGroup():getController()
               end
               -- and check if the EWR detected the aircraft
               if ewr_controller:isTargetDetected(ac, RADAR) then
-                ewr = active_ewr[n]['unit']
+                ewr = active_ewr[n].unit
                 ac_detected = true
                 -- stop once it was detected by one EWR
                 break
