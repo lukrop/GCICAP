@@ -335,6 +335,13 @@ gcicap.tasks = { "cap", "gci" }
 
 gcicap.log = mist.Logger:new("GCICAP", gcicap.log_level)
 
+-- if you create the function gcicap_do_config in a DO SCRIPT block
+-- before loading the GCICAP.lua file, then we will call it here
+-- This lets you override configuration without modifying the base script
+-- and making it easier to include in multiple missions without having multiple
+-- verisons of the file.
+if gcicap_do_config ~= nil then gcicap_do_config() end
+
 do
   --- Flight class.
   -- @type gcicap.Flight
